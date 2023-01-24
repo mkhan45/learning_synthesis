@@ -5,20 +5,30 @@ use crate::lang::*;
 pub fn bottom_up(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
     use StringExpr::*;
 
-    let mut bank = vec![
-        Loc(Some(0)),
-        Loc(Some(1)),
-        Loc(None),
-        Lit(" ".to_string()),
-        Input,
-    ];
+    let mut bank = Vec::new();
+    let mut add_to_bank = |prog: StringExpr| {
+        let simpl = prog.simplify(&StringExpr::Input);
+        let outs = examples.iter().map(|(inp, _)| simpl.simplify(inp)).collect::<Vec<_>>();
+        bank.push((simpl, outs));
+    };
+    add_to_bank(Loc(Some(0)));
+    add_to_bank(Loc(Some(1)));
+    add_to_bank(Loc(None));
+    add_to_bank(Lit(" ".to_string()));
+    add_to_bank(Input);
 
     for _ in 0..10 {
         let adjs = {
             let strings = bank
                 .iter()
+                .map(|(e, _)| e)
                 .filter(|e| matches!(e, Lit(_) | Concat { .. } | Slice { .. } | Input));
-            let locs = bank.iter().filter(|e| matches!(e, Loc(_) | Index { .. }));
+
+            let locs = bank
+                .iter()
+                .map(|(e, _)| e)
+                .filter(|e| matches!(e, Loc(_) | Index { .. }));
+
 
             let loc_adds = iproduct!(locs.clone(), locs.clone()).map(|(lhs, rhs)| LocAdd {
                 lhs: Box::new(lhs.clone()),
@@ -45,17 +55,6 @@ pub fn bottom_up(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
 
             slices.chain(concats).chain(indexes).chain(loc_adds)
         }
-        .filter(|new_prog| {
-            !iproduct!(examples.iter(), bank.iter())
-                .any(|((inp, _), bank_prog)| new_prog.simplify(inp) == bank_prog.simplify(inp))
-            // if new_prog == (&StringExpr::LocAdd {
-            //     lhs: Box::new(StringExpr::Loc(Some(1))),
-            //     rhs: Box::new(StringExpr::Loc(Some(1))),
-            // }) {
-            //     dbg!(res, new_prog.simplify(&StringExpr::Input));
-            // };
-            // res
-        })
         .map(|prog| prog.simplify(&StringExpr::Input))
         .collect::<Vec<_>>();
 
@@ -63,8 +62,11 @@ pub fn bottom_up(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
             if examples.iter().all(|(inp, out)| &adj.simplify(inp) == out) {
                 return Some(adj);
             } else {
-                let redundant = iproduct!(examples.iter(), bank.iter())
-                    .any(|((inp, _), bank_prog)| adj.simplify(inp) == bank_prog.simplify(inp));
+                let redundant = bank.iter().any(|(_, bank_outs)| {
+                    bank_outs.iter().zip(examples.iter()).all(|(bank_out, (inp, _))| {
+                        &adj.simplify(inp) == bank_out
+                    })
+                });
 
                 // overfitted prune
                 let too_many_spaces = examples.iter().all(|(inp, out)| {
@@ -86,7 +88,9 @@ pub fn bottom_up(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
                     if bank.len() % 100 == 0 {
                         println!("Bank Size: {}", bank.len());
                     }
-                    bank.push(adj);
+
+                    let outs = examples.iter().map(|(inp, _)| adj.simplify(inp)).collect();
+                    bank.push((adj, outs));
                 }
             }
         }
