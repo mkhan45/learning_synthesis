@@ -14,6 +14,6 @@ fn main() {
             StringExpr::Lit("A D".to_owned()),
         ),
     ];
-    let prog = enumerative::search::bottom_up(&examples);
+    let prog = enumerative::bottom_up(&examples);
     dbg!(prog);
 }
