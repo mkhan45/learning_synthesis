@@ -5,8 +5,15 @@ pub mod lang;
 
 fn main() {
     let examples = vec![
-        (StringExpr::Lit("First Last".to_owned()), StringExpr::Lit("First".to_owned())),
+        (
+            StringExpr::Lit("First Last".to_owned()),
+            StringExpr::Lit("F L".to_owned()),
+        ),
+        (
+            StringExpr::Lit("Abc Def".to_owned()),
+            StringExpr::Lit("A D".to_owned()),
+        ),
     ];
-    let prog = enumerative::search::synthesize(&examples);
+    let prog = enumerative::search::bottom_up(&examples);
     dbg!(prog);
 }
