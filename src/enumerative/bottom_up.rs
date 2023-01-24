@@ -8,7 +8,10 @@ pub fn bottom_up(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
     let mut bank = Vec::new();
     let mut add_to_bank = |prog: StringExpr| {
         let simpl = prog.simplify(&StringExpr::Input);
-        let outs = examples.iter().map(|(inp, _)| simpl.simplify(inp)).collect::<Vec<_>>();
+        let outs = examples
+            .iter()
+            .map(|(inp, _)| simpl.simplify(inp))
+            .collect::<Vec<_>>();
         bank.push((simpl, outs));
     };
     add_to_bank(Loc(Some(0)));
@@ -28,7 +31,6 @@ pub fn bottom_up(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
                 .iter()
                 .map(|(e, _)| e)
                 .filter(|e| matches!(e, Loc(_) | Index { .. }));
-
 
             let loc_adds = iproduct!(locs.clone(), locs.clone()).map(|(lhs, rhs)| LocAdd {
                 lhs: Box::new(lhs.clone()),
@@ -63,9 +65,10 @@ pub fn bottom_up(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
                 return Some(adj);
             } else {
                 let redundant = bank.iter().any(|(_, bank_outs)| {
-                    bank_outs.iter().zip(examples.iter()).all(|(bank_out, (inp, _))| {
-                        &adj.simplify(inp) == bank_out
-                    })
+                    bank_outs
+                        .iter()
+                        .zip(examples.iter())
+                        .all(|(bank_out, (inp, _))| &adj.simplify(inp) == bank_out)
                 });
 
                 // overfitted prune
