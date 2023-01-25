@@ -25,6 +25,6 @@ Roughly following <https://github.com/nadia-polikarpova/cse291-program-synthesis
 
 Goals:
 - [X] Bottom Up
-- [ ] Top Down
+- [X] Top Down
 - [ ] Middle Out?
   - https://dl.acm.org/doi/pdf/10.1145/3571226
