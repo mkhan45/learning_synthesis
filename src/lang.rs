@@ -176,7 +176,10 @@ impl StringExpr {
 
     pub fn size(&self) -> usize {
         match self {
-            StringExpr::Loc(_) | StringExpr::Input | StringExpr::Hole {..} | StringExpr::Lit(_) => 1,
+            StringExpr::Loc(_)
+            | StringExpr::Input
+            | StringExpr::Hole { .. }
+            | StringExpr::Lit(_) => 1,
             StringExpr::LocAdd { lhs, rhs } => lhs.size() + rhs.size(),
             StringExpr::Concat { lhs, rhs } => lhs.size() + rhs.size(),
             StringExpr::Index { outer, inner } => outer.size() + inner.size(),

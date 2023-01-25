@@ -12,6 +12,7 @@ pub fn top_down(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
 
     let mut i = 0;
     while let Some(prog) = wl.pop_front() {
+        let prog = prog.simplify(&StringExpr::Input);
         if wl.len() > 10_000_000 {
             panic!(":(");
         }
@@ -20,7 +21,7 @@ pub fn top_down(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
             println!("Worklist size: {}", wl.len());
         }
         i += 1;
-    
+
         let mut working_copy = prog.clone();
         match working_copy.first_hole() {
             None if examples.iter().all(|(inp, out)| &prog.simplify(inp) == out) => {
@@ -28,11 +29,11 @@ pub fn top_down(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
             }
             None => {
                 continue;
-            },
+            }
             Some(hole_ref) => {
                 let fills = match hole_ref {
                     Hole { typ: Typ::Str } => vec![
-                        StringExpr::Input, 
+                        StringExpr::Input,
                         StringExpr::concat_hole(),
                         StringExpr::slice_hole(),
                         StringExpr::Lit(" ".to_string()),
@@ -41,6 +42,7 @@ pub fn top_down(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
                         StringExpr::Loc(Some(0)),
                         StringExpr::Loc(Some(1)),
                         StringExpr::Loc(None),
+                        StringExpr::locadd_hole(),
                         // StringExpr::Index { outer: Box::new(StringExpr::Input), inner: Box::new(StringExpr::string_hole()) }
                         StringExpr::index_hole(),
                     ],

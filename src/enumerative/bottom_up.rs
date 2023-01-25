@@ -2,7 +2,7 @@ use itertools::iproduct;
 
 use crate::lang::*;
 
-pub fn bottom_up(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
+pub fn bottom_up(examples: &[(StringExpr, StringExpr)], max_size: usize) -> Option<StringExpr> {
     use StringExpr::*;
 
     let mut bank = Vec::new();
@@ -61,6 +61,10 @@ pub fn bottom_up(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
         .collect::<Vec<_>>();
 
         for adj in adjs {
+            if adj.size() > max_size {
+                continue;
+            }
+
             if examples.iter().all(|(inp, out)| &adj.simplify(inp) == out) {
                 return Some(adj);
             } else {
@@ -91,6 +95,10 @@ pub fn bottom_up(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
                     if bank.len() % 100 == 0 {
                         println!("Bank Size: {}", bank.len());
                     }
+                    if bank.len() > max_size {
+                        return None;
+                    }
+
 
                     let outs = examples.iter().map(|(inp, _)| adj.simplify(inp)).collect();
                     bank.push((adj, outs));

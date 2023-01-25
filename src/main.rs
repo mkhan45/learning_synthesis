@@ -18,14 +18,14 @@ fn main() {
 
     let examples = vec![
         (
-            StringExpr::Lit("First Last".to_owned()),
-            StringExpr::Lit("Last".to_owned()),
+            StringExpr::Lit("First M Last".to_owned()),
+            StringExpr::Lit("First M L".to_owned()),
         ),
         (
-            StringExpr::Lit("Abc Def".to_owned()),
-            StringExpr::Lit("Def".to_owned()),
+            StringExpr::Lit("Abc G Def".to_owned()),
+            StringExpr::Lit("Abc G D".to_owned()),
         ),
     ];
-    let prog = enumerative::top_down(&examples);
+    let prog = enumerative::tdp(&examples, 10_000);
     dbg!(prog);
 }

@@ -6,3 +6,6 @@ pub use bottom_up_egg::bottom_up_egg;
 
 mod top_down;
 pub use top_down::top_down;
+
+mod tdp;
+pub use tdp::tdp;
