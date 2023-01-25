@@ -10,7 +10,17 @@ pub fn top_down(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
     // TODO: check example output, support Loc
     wl.push_back(Hole { typ: Typ::Str });
 
+    let mut i = 0;
     while let Some(prog) = wl.pop_front() {
+        if wl.len() > 10_000_000 {
+            panic!(":(");
+        }
+
+        if i % 10_000 == 0 {
+            println!("Worklist size: {}", wl.len());
+        }
+        i += 1;
+    
         let mut working_copy = prog.clone();
         match working_copy.first_hole() {
             None if examples.iter().all(|(inp, out)| &prog.simplify(inp) == out) => {
@@ -31,6 +41,7 @@ pub fn top_down(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
                         StringExpr::Loc(Some(0)),
                         StringExpr::Loc(Some(1)),
                         StringExpr::Loc(None),
+                        // StringExpr::Index { outer: Box::new(StringExpr::Input), inner: Box::new(StringExpr::string_hole()) }
                         StringExpr::index_hole(),
                     ],
                     _ => unreachable!(),
@@ -41,7 +52,10 @@ pub fn top_down(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
                     unsafe {
                         *hole_ptr = fill;
                     }
-                    wl.push_back(working_copy.clone());
+
+                    if working_copy.size() < 30 {
+                        wl.push_back(working_copy.clone());
+                    }
                 }
             }
         }

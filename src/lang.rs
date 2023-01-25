@@ -174,13 +174,13 @@ impl StringExpr {
         }
     }
 
-    // pub fn replace_hole(self, goal: &StringExpr) -> Option<StringExpr> {
-    //     use StringExpr::*;
-
-    //     match (self.simplify(), goal) {
-    //         (Hole, _) => Some(goal.clone()),
-    //         (Lit(lhs), Lit(rhs)) if &lhs == rhs => Some(goal.clone()),
-    //         _ => todo!(),
-    //     }
-    // }
+    pub fn size(&self) -> usize {
+        match self {
+            StringExpr::Loc(_) | StringExpr::Input | StringExpr::Hole {..} | StringExpr::Lit(_) => 1,
+            StringExpr::LocAdd { lhs, rhs } => lhs.size() + rhs.size(),
+            StringExpr::Concat { lhs, rhs } => lhs.size() + rhs.size(),
+            StringExpr::Index { outer, inner } => outer.size() + inner.size(),
+            StringExpr::Slice { outer, start, end } => outer.size() + start.size() + end.size(),
+        }
+    }
 }
