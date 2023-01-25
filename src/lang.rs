@@ -5,6 +5,13 @@ pub enum LitPrim {
     Space,
 }
 
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum Typ {
+    Str,
+    Loc,
+    Symbol,
+}
+
 #[derive(Clone, PartialEq, Eq)]
 pub enum StringExpr {
     Loc(Option<usize>),
@@ -27,7 +34,9 @@ pub enum StringExpr {
         end: Box<StringExpr>,
     },
     Input,
-    Hole,
+    Hole {
+        typ: Typ,
+    },
 }
 
 impl std::fmt::Debug for StringExpr {
@@ -40,7 +49,9 @@ impl std::fmt::Debug for StringExpr {
             Self::Index { outer, inner } => write!(f, "({:?}.find({:?}))", outer, inner),
             Self::Slice { outer, start, end } => write!(f, "({:?}[{:?}..{:?}])", outer, start, end),
             Self::Input => write!(f, "X"),
-            Self::Hole => write!(f, "_"),
+            Self::Hole { typ: Typ::Str } => write!(f, "_s_"),
+            Self::Hole { typ: Typ::Loc } => write!(f, "_l_"),
+            Self::Hole { typ: Typ::Symbol } => panic!(),
         }
     }
 }
@@ -50,7 +61,7 @@ impl StringExpr {
         use StringExpr::*;
 
         match self {
-            Lit(_) | Loc(_) | Hole => self.clone(),
+            Lit(_) | Loc(_) | Hole { .. } => self.clone(),
             LocAdd { lhs, rhs } => match (lhs.as_ref(), rhs.as_ref()) {
                 (Loc(Some(lhs)), Loc(Some(rhs))) => Loc(Some(lhs + rhs)),
                 _ => Loc(None),
@@ -99,14 +110,70 @@ impl StringExpr {
         use StringExpr::*;
 
         match self {
-            Hole => true,
+            Hole { .. } => true,
             Loc(_) | Lit(_) | Input => false,
             LocAdd { lhs, rhs } => lhs.contains_hole() || rhs.contains_hole(),
             Concat { lhs, rhs } => lhs.contains_hole() || rhs.contains_hole(),
             Index { outer, inner } => outer.contains_hole() || inner.contains_hole(),
-            Slice { outer, start, end } => outer.contains_hole() || start.contains_hole() || end.contains_hole(),
+            Slice { outer, start, end } => {
+                outer.contains_hole() || start.contains_hole() || end.contains_hole()
+            }
         }
     }
+
+    pub fn first_hole(&mut self) -> Option<&mut StringExpr> {
+        use StringExpr::*;
+
+        match self {
+            Hole { .. } => Some(self),
+            Loc(_) | Lit(_) | Input => None,
+            LocAdd { lhs, rhs } => lhs.first_hole().or_else(|| rhs.first_hole()),
+            Concat { lhs, rhs } => lhs.first_hole().or_else(|| rhs.first_hole()),
+            Index { outer, inner } => outer.first_hole().or_else(|| inner.first_hole()),
+            Slice { outer, start, end } => outer
+                .first_hole()
+                .or_else(|| start.first_hole())
+                .or_else(|| end.first_hole()),
+        }
+    }
+
+    pub fn string_hole() -> Self {
+        StringExpr::Hole { typ: Typ::Str }
+    }
+
+    pub fn loc_hole() -> Self {
+        StringExpr::Hole { typ: Typ::Loc }
+    }
+
+    pub fn locadd_hole() -> Self {
+        StringExpr::LocAdd {
+            lhs: Box::new(StringExpr::loc_hole()),
+            rhs: Box::new(StringExpr::loc_hole()),
+        }
+    }
+
+    pub fn concat_hole() -> Self {
+        StringExpr::Concat {
+            lhs: Box::new(StringExpr::string_hole()),
+            rhs: Box::new(StringExpr::string_hole()),
+        }
+    }
+
+    pub fn index_hole() -> Self {
+        StringExpr::Index {
+            outer: Box::new(StringExpr::string_hole()),
+            inner: Box::new(StringExpr::string_hole()),
+        }
+    }
+
+    pub fn slice_hole() -> Self {
+        StringExpr::Slice {
+            outer: Box::new(StringExpr::string_hole()),
+            start: Box::new(StringExpr::loc_hole()),
+            end: Box::new(StringExpr::loc_hole()),
+        }
+    }
+
     // pub fn replace_hole(self, goal: &StringExpr) -> Option<StringExpr> {
     //     use StringExpr::*;
 

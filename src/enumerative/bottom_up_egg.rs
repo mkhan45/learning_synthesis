@@ -1,16 +1,10 @@
 use crate::egg_lang::{self, simplify, StringExprEgg as StringExpr};
+use crate::lang::Typ;
 use egg::*;
 use itertools::{iproduct, Itertools};
 
 pub struct ObservationalEquivalence<'a> {
     examples: &'a [(String, String)],
-}
-
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum Typ {
-    Str,
-    Loc,
-    Symbol,
 }
 
 // idk why but it tries to unify things when it shouldn't
@@ -45,7 +39,11 @@ impl<'a> Analysis<StringExpr> for ObservationalEquivalence<'a> {
     }
 
     fn merge(&mut self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
-        assert!(a.0.iter().zip_eq(b.0.iter()).all(|(a, b)| dbg!(a) == dbg!(b)));
+        assert!(a
+            .0
+            .iter()
+            .zip_eq(b.0.iter())
+            .all(|(a, b)| dbg!(a) == dbg!(b)));
         DidMerge(false, false)
     }
 }
@@ -147,9 +145,7 @@ pub fn bottom_up_egg(
             let correct = examples
                 .iter()
                 .zip(outs.iter())
-                .all(|((_, expected_out), got_out)| {
-                    expected_out == &got_out.to_string()
-                });
+                .all(|((_, expected_out), got_out)| expected_out == &got_out.to_string());
 
             if correct {
                 return Some((bank[Id::from(new_id)].nodes[0].clone(), bank));
