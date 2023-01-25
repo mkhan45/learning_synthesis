@@ -95,17 +95,18 @@ impl StringExpr {
         }
     }
 
-    // pub fn contains_hole(&self) -> bool {
-    //     use StringExpr::*;
+    pub fn contains_hole(&self) -> bool {
+        use StringExpr::*;
 
-    //     match self {
-    //         Hole => true,
-    //         Loc(_) | Lit(_) | Input => false,
-    //         Concat { lhs, rhs } => lhs.contains_hole() || rhs.contains_hole(),
-    //         Index { outer, inner } => outer.contains_hole() || inner.contains_hole(),
-    //         Slice { outer, start, end } => outer.contains_hole() || start.contains_hole() || end.contains_hole(),
-    //     }
-    // }
+        match self {
+            Hole => true,
+            Loc(_) | Lit(_) | Input => false,
+            LocAdd { lhs, rhs } => lhs.contains_hole() || rhs.contains_hole(),
+            Concat { lhs, rhs } => lhs.contains_hole() || rhs.contains_hole(),
+            Index { outer, inner } => outer.contains_hole() || inner.contains_hole(),
+            Slice { outer, start, end } => outer.contains_hole() || start.contains_hole() || end.contains_hole(),
+        }
+    }
     // pub fn replace_hole(self, goal: &StringExpr) -> Option<StringExpr> {
     //     use StringExpr::*;
 

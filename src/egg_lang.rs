@@ -39,7 +39,7 @@ pub fn simplify(expr: RecExpr<StringExprEgg>, input: &String) -> StringExprEgg {
 
             Slice([lhs, start, end]) => match (e(*lhs), e(*start), e(*end)) {
                 (Lit(lhs), Loc(start), End) => Lit(lhs[start..].to_string()),
-                (Lit(lhs), Loc(start), Loc(end)) if start <= end && end < lhs.len() => {
+                (Lit(lhs), Loc(start), Loc(end)) if start <= end && end <= lhs.len() => {
                     Lit(lhs[start..end].to_string())
                 }
                 _ => Symbol(Symbol::new("Error")),
