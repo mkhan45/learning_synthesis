@@ -4,6 +4,8 @@ use std::collections::VecDeque;
 
 use crate::lang::*;
 
+// this isnt really tdp i got sidetracked
+
 // TODO: reuse bank
 // should probably just follow https://dl.acm.org/doi/pdf/10.1145/3434335
 // page 11
