@@ -21,10 +21,16 @@
 )
 ```
 
-Roughly following <https://github.com/nadia-polikarpova/cse291-program-synthesis> to learn synthesis
+Roughly following these to learn synthesis
+- <https://github.com/nadia-polikarpova/cse291-program-synthesis>
+- <https://people.csail.mit.edu/asolar/SynthesisCourse/index.htm>
 
 Goals:
 - [X] Bottom Up
 - [X] Top Down
+    - [ ] Better pruning
+- Figure out VSAs?
+- [ ] Duet approach
+    - https://dl.acm.org/doi/10.1145/3434335
 - [ ] Middle Out?
   - https://dl.acm.org/doi/pdf/10.1145/3571226
