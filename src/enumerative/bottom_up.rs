@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use itertools::iproduct;
 
 use crate::lang::*;
@@ -6,13 +7,15 @@ pub fn bottom_up(examples: &[(StringExpr, StringExpr)], max_size: usize) -> Opti
     use StringExpr::*;
 
     let mut bank = Vec::new();
+    let mut out_bank = HashSet::new();
     let mut add_to_bank = |prog: StringExpr| {
         let simpl = prog.simplify(&StringExpr::Input);
         let outs = examples
             .iter()
             .map(|(inp, _)| simpl.simplify(inp))
             .collect::<Vec<_>>();
-        bank.push((simpl, outs));
+        out_bank.insert(outs.clone());
+        bank.push(simpl);
     };
     add_to_bank(Loc(Some(0)));
     add_to_bank(Loc(Some(1)));
@@ -24,12 +27,10 @@ pub fn bottom_up(examples: &[(StringExpr, StringExpr)], max_size: usize) -> Opti
         let adjs = {
             let strings = bank
                 .iter()
-                .map(|(e, _)| e)
                 .filter(|e| matches!(e, Lit(_) | Concat { .. } | Slice { .. } | Input));
 
             let locs = bank
                 .iter()
-                .map(|(e, _)| e)
                 .filter(|e| matches!(e, Loc(_) | Index { .. }));
 
             let loc_adds = iproduct!(locs.clone(), locs.clone()).map(|(lhs, rhs)| LocAdd {
@@ -68,12 +69,8 @@ pub fn bottom_up(examples: &[(StringExpr, StringExpr)], max_size: usize) -> Opti
             if examples.iter().all(|(inp, out)| &adj.simplify(inp) == out) {
                 return Some(adj);
             } else {
-                let redundant = bank.iter().any(|(_, bank_outs)| {
-                    bank_outs
-                        .iter()
-                        .zip(examples.iter())
-                        .all(|(bank_out, (inp, _))| &adj.simplify(inp) == bank_out)
-                });
+                let outs: Vec<_> = examples.iter().map(|(inp, _)| adj.simplify(inp)).collect();
+                let redundant = out_bank.contains(&outs);
 
                 // overfitted prune
                 let too_many_spaces = examples.iter().all(|(inp, out)| {
@@ -100,8 +97,8 @@ pub fn bottom_up(examples: &[(StringExpr, StringExpr)], max_size: usize) -> Opti
                     }
 
 
-                    let outs = examples.iter().map(|(inp, _)| adj.simplify(inp)).collect();
-                    bank.push((adj, outs));
+                    out_bank.insert(outs.clone());
+                    bank.push(adj);
                 }
             }
         }

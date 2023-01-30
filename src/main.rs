@@ -7,6 +7,7 @@ use crate::lang::StringExpr;
 pub mod egg_lang;
 pub mod enumerative;
 pub mod lang;
+pub mod vsa;
 
 fn main() {
     // egg_lang::test();
@@ -26,6 +27,6 @@ fn main() {
             StringExpr::Lit("A D".to_owned()),
         ),
     ];
-    let prog = enumerative::combo_synth(&examples);
+    let prog = enumerative::bottom_up(&examples, 5000);
     dbg!(prog);
 }

@@ -5,14 +5,14 @@ pub enum LitPrim {
     Space,
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum Typ {
     Str,
     Loc,
     Symbol,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum StringExpr {
     Loc(Option<usize>),
     LocAdd {
