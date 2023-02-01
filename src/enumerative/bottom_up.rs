@@ -1,5 +1,5 @@
-use std::collections::HashSet;
 use itertools::iproduct;
+use std::collections::HashSet;
 
 use crate::lang::*;
 
@@ -29,9 +29,7 @@ pub fn bottom_up(examples: &[(StringExpr, StringExpr)], max_size: usize) -> Opti
                 .iter()
                 .filter(|e| matches!(e, Lit(_) | Concat { .. } | Slice { .. } | Input));
 
-            let locs = bank
-                .iter()
-                .filter(|e| matches!(e, Loc(_) | Index { .. }));
+            let locs = bank.iter().filter(|e| matches!(e, Loc(_) | Index { .. }));
 
             let loc_adds = iproduct!(locs.clone(), locs.clone()).map(|(lhs, rhs)| LocAdd {
                 lhs: Box::new(lhs.clone()),
@@ -95,7 +93,6 @@ pub fn bottom_up(examples: &[(StringExpr, StringExpr)], max_size: usize) -> Opti
                     if bank.len() > max_size {
                         return None;
                     }
-
 
                     out_bank.insert(outs.clone());
                     bank.push(adj);

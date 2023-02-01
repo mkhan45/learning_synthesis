@@ -1,6 +1,6 @@
-use std::collections::VecDeque;
 use crate::lang::*;
 use itertools::iproduct;
+use std::collections::VecDeque;
 
 // Duet
 // https://dl.acm.org/doi/10.1145/3434335
@@ -27,7 +27,7 @@ pub fn combo_synth(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> 
     loop {
         bottom_up(&mut bank, examples, size);
         size += 1;
-        if let r@Some(_) = top_down(&bank, examples) {
+        if let r @ Some(_) = top_down(&bank, examples) {
             return r;
         }
     }
@@ -139,21 +139,23 @@ pub fn top_down(bank: &Bank, examples: &[(StringExpr, StringExpr)]) -> Option<St
             }
             Some(hole_ref) => {
                 let fills: Vec<_> = match hole_ref {
-                    Hole { typ: Typ::Str } => bank.iter().filter_map(|(expr, outs)| {
-                        match outs[0] {
-                            Hole {..} => unreachable!(),
-                            Loc(_) | LocAdd {..} | Index {..} => None,
-                            Concat {..} | Lit(_) | Slice {..} | Input => Some(expr.clone()),
-                        }
-                    }).collect(),
-                    Hole { typ: Typ::Loc } => bank.iter().filter_map(|(expr, outs)| {
-                        match outs[0] {
-                            Hole {..} => unreachable!(),
-                            Loc(_) | LocAdd {..} | Index {..} => Some(expr.clone()),
-                            Concat {..} | Lit(_) | Slice {..} | Input => None,
-                        }
-                    }).collect(),
-                   _ => unreachable!(),
+                    Hole { typ: Typ::Str } => bank
+                        .iter()
+                        .filter_map(|(expr, outs)| match outs[0] {
+                            Hole { .. } => unreachable!(),
+                            Loc(_) | LocAdd { .. } | Index { .. } => None,
+                            Concat { .. } | Lit(_) | Slice { .. } | Input => Some(expr.clone()),
+                        })
+                        .collect(),
+                    Hole { typ: Typ::Loc } => bank
+                        .iter()
+                        .filter_map(|(expr, outs)| match outs[0] {
+                            Hole { .. } => unreachable!(),
+                            Loc(_) | LocAdd { .. } | Index { .. } => Some(expr.clone()),
+                            Concat { .. } | Lit(_) | Slice { .. } | Input => None,
+                        })
+                        .collect(),
+                    _ => unreachable!(),
                 };
 
                 let hole_ptr: *mut StringExpr = hole_ref;
