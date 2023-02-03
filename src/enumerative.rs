@@ -12,3 +12,6 @@ pub use top_down::top_down;
 
 mod combo;
 pub use combo::combo_synth;
+
+mod bottom_up_vsa;
+pub use bottom_up_vsa::bottom_up as bottom_up_vsa;

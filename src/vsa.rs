@@ -10,15 +10,21 @@ pub enum VSA<L: Clone + Eq + std::hash::Hash, F: Language<L> + std::hash::Hash> 
     Join { op: F, children: Vec<Rc<VSA<L, F>>> },
 }
 
+impl<L: std::hash::Hash + Eq + Clone, F: Language<L> + std::hash::Hash> Default for VSA<L, F> {
+    fn default() -> Self {
+        VSA::Leaf(HashSet::new())
+    }
+}
+
 impl<L: Clone + Eq + std::hash::Hash, F: Language<L> + Eq + Copy + std::hash::Hash> VSA<L, F> {
-    fn eval(&self) -> L {
+    fn eval(&self, inp: &L) -> L {
         match self {
-            VSA::Leaf(c) => c.iter().next().unwrap().clone().eval(),
-            VSA::Union(c) => c[0].eval(),
+            VSA::Leaf(c) => c.iter().next().unwrap().clone().eval(inp),
+            VSA::Union(c) => c[0].eval(inp),
             VSA::Join { op, children } => {
                 let cs = children
                     .iter()
-                    .map(|vsa| vsa.clone().eval())
+                    .map(|vsa| vsa.clone().eval(inp))
                     .collect::<Vec<_>>();
                 op.eval(&cs)
             }
@@ -98,6 +104,7 @@ pub enum Lit {
     StringConst(String),
     LocConst(usize),
     LocEnd,
+    Input,
 }
 
 #[derive(Clone, Hash, PartialEq, Eq)]
@@ -142,8 +149,8 @@ impl Language<Lit> for Fun {
 }
 
 impl<L: Clone + std::hash::Hash, F: Language<L> + Copy + std::hash::Hash> AST<L, F> {
-    pub fn eval(&self) -> L {
-        let evaled = self.args.iter().map(AST::eval).collect::<Vec<_>>();
+    pub fn eval(&self, inp: &L) -> L {
+        let evaled = self.args.iter().map(|ast| ast.eval(inp)).collect::<Vec<_>>();
         match self.fun {
             Some(fun) => fun.eval(&evaled),
             None => evaled[0].clone(),
