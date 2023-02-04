@@ -1,7 +1,5 @@
 #![feature(io_error_other)]
 
-use egg::Language;
-
 use crate::lang::StringExpr;
 
 pub mod egg_lang;

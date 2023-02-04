@@ -1,7 +1,7 @@
 use itertools::iproduct;
 use std::collections::HashSet;
 
-use crate::vsa::{Lit, Fun, AST};
+use crate::vsa::{Fun, Lit, AST};
 
 type Prog = AST<Lit, Fun>;
 type VSA = crate::vsa::VSA<Lit, Fun>;

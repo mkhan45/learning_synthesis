@@ -1,22 +1,34 @@
-use std::{collections::HashSet, marker::PhantomData, rc::Rc};
+use std::{collections::HashMap, collections::HashSet, marker::PhantomData, rc::Rc};
 
 pub trait Language<L> {
     fn eval(&self, args: &[L]) -> L;
 }
 
-pub enum VSA<L: Clone + Eq + std::hash::Hash, F: Language<L> + std::hash::Hash> {
+pub enum VSA<L, F>
+where
+    L: Clone + Eq + std::hash::Hash,
+    F: Language<L> + std::hash::Hash,
+{
     Leaf(HashSet<Rc<AST<L, F>>>),
     Union(Vec<Rc<VSA<L, F>>>),
     Join { op: F, children: Vec<Rc<VSA<L, F>>> },
 }
 
-impl<L: std::hash::Hash + Eq + Clone, F: Language<L> + std::hash::Hash> Default for VSA<L, F> {
+impl<L, F> Default for VSA<L, F>
+where
+    L: std::hash::Hash + Eq + Clone,
+    F: Language<L> + std::hash::Hash,
+{
     fn default() -> Self {
         VSA::Leaf(HashSet::new())
     }
 }
 
-impl<L: Clone + Eq + std::hash::Hash, F: Language<L> + Eq + Copy + std::hash::Hash> VSA<L, F> {
+impl<L, F> VSA<L, F>
+where
+    L: Clone + Eq + std::hash::Hash,
+    F: Language<L> + Eq + Copy + std::hash::Hash,
+{
     fn eval(&self, inp: &L) -> L {
         match self {
             VSA::Leaf(c) => c.iter().next().unwrap().clone().eval(inp),
@@ -83,12 +95,44 @@ impl<L: Clone + Eq + std::hash::Hash, F: Language<L> + Eq + Copy + std::hash::Ha
         }
     }
 
+    fn group_by(map: HashMap<L, Rc<VSA<L, F>>>) -> HashMap<L, Rc<VSA<L, F>>> {
+        // TODO: do it in O(n)
+        map.iter()
+            .map(|(o1, _)| {
+                (
+                    o1.clone(),
+                    Rc::new(VSA::Union(
+                        map.iter()
+                            .filter(|(o2, _)| &o1 == o2)
+                            .map(|(_, v)| v.clone())
+                            .collect(),
+                    )),
+                )
+            })
+            .collect()
+    }
+
     fn ranking(&self, cmp: impl Fn(&VSA<L, F>) -> usize) -> VSA<L, F> {
         todo!()
     }
 
-    fn cluster(&self, examples: &Vec<(L, L)>) -> Vec<(L, VSA<L, F>)> {
-        todo!()
+    fn cluster(&self, input: &L) -> HashMap<L, Rc<VSA<L, F>>> {
+        match self {
+            VSA::Leaf(s) => {
+                VSA::group_by(
+                    s.iter()
+                        .map(|p| {
+                            (
+                                p.eval(input),
+                                Rc::new(VSA::Leaf(std::iter::once(p.clone()).collect())),
+                            )
+                        })
+                        .collect(),
+                )
+            }
+            VSA::Union(_) => todo!(),
+            VSA::Join { op, children } => todo!(),
+        }
     }
 }
 
@@ -150,7 +194,11 @@ impl Language<Lit> for Fun {
 
 impl<L: Clone + std::hash::Hash, F: Language<L> + Copy + std::hash::Hash> AST<L, F> {
     pub fn eval(&self, inp: &L) -> L {
-        let evaled = self.args.iter().map(|ast| ast.eval(inp)).collect::<Vec<_>>();
+        let evaled = self
+            .args
+            .iter()
+            .map(|ast| ast.eval(inp))
+            .collect::<Vec<_>>();
         match self.fun {
             Some(fun) => fun.eval(&evaled),
             None => evaled[0].clone(),
