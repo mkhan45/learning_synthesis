@@ -4,10 +4,11 @@ pub trait Language<L> {
     fn eval(&self, args: &[L]) -> L;
 }
 
+#[derive(Debug)]
 pub enum VSA<L, F>
 where
-    L: Clone + Eq + std::hash::Hash,
-    F: Language<L> + std::hash::Hash,
+    L: Clone + Eq + std::hash::Hash + std::fmt::Debug,
+    F: Language<L> + std::hash::Hash + std::fmt::Debug,
 {
     Leaf(HashSet<Rc<AST<L, F>>>),
     Union(Vec<Rc<VSA<L, F>>>),
@@ -16,8 +17,8 @@ where
 
 impl<L, F> Default for VSA<L, F>
 where
-    L: std::hash::Hash + Eq + Clone,
-    F: Language<L> + std::hash::Hash,
+    L: std::hash::Hash + Eq + Clone + std::fmt::Debug,
+    F: Language<L> + std::hash::Hash + std::fmt::Debug,
 {
     fn default() -> Self {
         VSA::Leaf(HashSet::new())
@@ -26,8 +27,8 @@ where
 
 impl<L, F> VSA<L, F>
 where
-    L: Clone + Eq + std::hash::Hash,
-    F: Language<L> + Eq + Copy + std::hash::Hash,
+    L: Clone + Eq + std::hash::Hash + std::fmt::Debug,
+    F: Language<L> + Eq + Copy + std::hash::Hash + std::fmt::Debug,
 {
     fn eval(&self, inp: &L) -> L {
         match self {
@@ -118,32 +119,39 @@ where
 
     fn cluster(&self, input: &L) -> HashMap<L, Rc<VSA<L, F>>> {
         match self {
-            VSA::Leaf(s) => {
-                VSA::group_by(
-                    s.iter()
-                        .map(|p| {
-                            (
-                                p.eval(input),
-                                Rc::new(VSA::Leaf(std::iter::once(p.clone()).collect())),
-                            )
-                        })
-                        .collect(),
-                )
+            VSA::Leaf(s) => VSA::group_by(
+                s.iter()
+                    .map(|p| {
+                        (
+                            p.eval(input),
+                            Rc::new(VSA::Leaf(std::iter::once(p.clone()).collect())),
+                        )
+                    })
+                    .collect(),
+            ),
+            VSA::Union(s) => VSA::group_by(
+                // the union of all the clusters
+                s.iter()
+                    .map(|vsa| vsa.cluster(input))
+                    .reduce(|a, b| a.into_iter().chain(b.into_iter()).collect())
+                    .unwrap(),
+            ),
+            VSA::Join { op, children } => {
+                let ns = children.iter().map(|vsa| vsa.cluster(input));
+                todo!()
             }
-            VSA::Union(_) => todo!(),
-            VSA::Join { op, children } => todo!(),
         }
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum Fun {
     Concat,
     Find,
     Slice,
 }
 
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum Lit {
     StringConst(String),
     LocConst(usize),
@@ -151,8 +159,12 @@ pub enum Lit {
     Input,
 }
 
-#[derive(Clone, Hash, PartialEq, Eq)]
-pub struct AST<L: std::hash::Hash, F: Language<L> + std::hash::Hash> {
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+pub struct AST<L, F>
+where
+    L: std::hash::Hash + std::fmt::Debug,
+    F: Language<L> + std::hash::Hash + std::fmt::Debug,
+{
     pub fun: Option<F>,
     pub args: Vec<AST<L, F>>,
     phantom_l: PhantomData<L>,
@@ -192,7 +204,11 @@ impl Language<Lit> for Fun {
     }
 }
 
-impl<L: Clone + std::hash::Hash, F: Language<L> + Copy + std::hash::Hash> AST<L, F> {
+impl<L, F> AST<L, F>
+where
+    L: Clone + std::hash::Hash + std::fmt::Debug,
+    F: Language<L> + Copy + std::hash::Hash + std::fmt::Debug,
+{
     pub fn eval(&self, inp: &L) -> L {
         let evaled = self
             .args
