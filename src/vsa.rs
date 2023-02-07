@@ -48,9 +48,8 @@ where
         match self {
             VSA::Leaf(s) => s.contains(program),
             VSA::Union(vss) => vss.iter().any(|vs| vs.contains(program)),
-            VSA::Join { op, children } => match program.fun {
-                Some(f) if f == *op => program
-                    .args
+            VSA::Join { op, children } => match program {
+                AST::App { fun, args } if fun == op => args
                     .iter()
                     .all(|arg| children.iter().any(|vss| vss.contains(arg))),
                 _ => false,
@@ -83,10 +82,10 @@ where
             #[rustfmt::skip]
             (VSA::Join { op, children }, VSA::Leaf(s)) | (VSA::Leaf(s), VSA::Join { op, children })
                 => VSA::Leaf(s.iter().filter(|pj| {
-                    match pj.fun {
-                        Some(f) if f == *op => 
-                            pj.args.iter().all(|arg| children.iter().any(|cs| cs.clone().contains(arg))),
-                        _ => false,
+                    match pj.as_ref() {
+                        AST::App { fun, args } if fun == op => 
+                            args.iter().all(|arg| children.iter().any(|cs| cs.clone().contains(arg))),
+                        _ => false
                     }
                 }).cloned().collect()),
 
@@ -138,7 +137,25 @@ where
             ),
             VSA::Join { op, children } => {
                 let ns = children.iter().map(|vsa| vsa.cluster(input));
-                todo!()
+                VSA::group_by(
+                    ns.map(|m| {
+                        // let ast = AST {
+                        //     fun: Some(*op),
+                        //     args: m
+                        //         .keys()
+                        //         .cloned()
+                        //         .map(|l| AST {
+                        //             fun: None,
+                        //             args: vec![l],
+                        //             phantom_l: PhantomData::default(),
+                        //         })
+                        //         .collect(),
+                        //     phantom_l: PhantomData::default(),
+                        // };
+                        todo!()
+                    })
+                    .collect(),
+                )
             }
         }
     }
@@ -160,14 +177,13 @@ pub enum Lit {
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
-pub struct AST<L, F>
+pub enum AST<L, F>
 where
     L: std::hash::Hash + std::fmt::Debug,
     F: Language<L> + std::hash::Hash + std::fmt::Debug,
 {
-    pub fun: Option<F>,
-    pub args: Vec<AST<L, F>>,
-    phantom_l: PhantomData<L>,
+    App { fun: F, args: Vec<AST<L, F>> },
+    Lit(L),
 }
 
 impl Language<Lit> for Fun {
@@ -210,14 +226,15 @@ where
     F: Language<L> + Copy + std::hash::Hash + std::fmt::Debug,
 {
     pub fn eval(&self, inp: &L) -> L {
-        let evaled = self
-            .args
-            .iter()
-            .map(|ast| ast.eval(inp))
-            .collect::<Vec<_>>();
-        match self.fun {
-            Some(fun) => fun.eval(&evaled),
-            None => evaled[0].clone(),
+        match self {
+            AST::Lit(l) => l.clone(),
+            AST::App { fun, args} => {
+                let evaled = args
+                    .iter()
+                    .map(|ast| ast.eval(inp))
+                    .collect::<Vec<_>>();
+                fun.eval(&evaled)
+            }
         }
     }
 }
