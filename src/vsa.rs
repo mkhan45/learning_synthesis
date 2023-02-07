@@ -116,6 +116,17 @@ where
         todo!()
     }
 
+    fn pick_one(&self) -> AST<L, F> {
+        match self {
+            VSA::Leaf(s) => s.iter().next().unwrap().as_ref().clone(),
+            VSA::Union(s) => s[0].pick_one(),
+            VSA::Join { op, children } => AST::App {
+                fun: *op,
+                args: children.iter().map(|vsa| vsa.pick_one()).collect(),
+            }
+        }
+    }
+
     fn cluster(vsa: Rc<VSA<L, F>>, input: &L) -> HashMap<L, Rc<VSA<L, F>>> {
         match vsa.as_ref() {
             VSA::Leaf(s) => VSA::group_by(
