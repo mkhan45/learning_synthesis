@@ -1,4 +1,4 @@
-use std::{collections::HashMap, collections::HashSet, marker::PhantomData, rc::Rc};
+use std::{collections::HashMap, collections::HashSet, rc::Rc};
 
 pub trait Language<L> {
     fn eval(&self, args: &[L]) -> L;
@@ -116,8 +116,8 @@ where
         todo!()
     }
 
-    fn cluster(&self, input: &L) -> HashMap<L, Rc<VSA<L, F>>> {
-        match self {
+    fn cluster(vsa: Rc<VSA<L, F>>, input: &L) -> HashMap<L, Rc<VSA<L, F>>> {
+        match vsa.as_ref() {
             VSA::Leaf(s) => VSA::group_by(
                 s.iter()
                     .map(|p| {
@@ -131,28 +131,17 @@ where
             VSA::Union(s) => VSA::group_by(
                 // the union of all the clusters
                 s.iter()
-                    .map(|vsa| vsa.cluster(input))
+                    .map(|vsa| VSA::cluster(vsa.clone(), input))
                     .reduce(|a, b| a.into_iter().chain(b.into_iter()).collect())
                     .unwrap(),
             ),
             VSA::Join { op, children } => {
-                let ns = children.iter().map(|vsa| vsa.cluster(input));
+                let ns = children.iter().map(|vsa| VSA::cluster(vsa.clone(), input));
                 VSA::group_by(
                     ns.map(|m| {
-                        // let ast = AST {
-                        //     fun: Some(*op),
-                        //     args: m
-                        //         .keys()
-                        //         .cloned()
-                        //         .map(|l| AST {
-                        //             fun: None,
-                        //             args: vec![l],
-                        //             phantom_l: PhantomData::default(),
-                        //         })
-                        //         .collect(),
-                        //     phantom_l: PhantomData::default(),
-                        // };
-                        todo!()
+                        let ast = AST::App { fun: *op, args: m.keys().map(|l| AST::Lit(l.clone())).collect() };
+                        let res = ast.eval(input);
+                        (res, vsa.clone())
                     })
                     .collect(),
                 )
