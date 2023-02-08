@@ -30,6 +30,14 @@ where
     L: Clone + Eq + std::hash::Hash + std::fmt::Debug,
     F: Language<L> + Eq + Copy + std::hash::Hash + std::fmt::Debug,
 {
+    pub fn empty() -> Self {
+        VSA::Leaf(HashSet::new())
+    }
+
+    pub fn singleton(ast: AST<L, F>) -> Self {
+        VSA::Leaf(std::iter::once(Rc::new(ast)).collect())
+    }
+
     fn eval(&self, inp: &L) -> L {
         match self {
             VSA::Leaf(c) => c.iter().next().unwrap().clone().eval(inp),
@@ -69,21 +77,21 @@ where
             ),
 
             #[rustfmt::skip]
-            (VSA::Join { op: l_op, .. }, VSA::Join { op: r_op, .. }) 
+            (VSA::Join { op: l_op, .. }, VSA::Join { op: r_op, .. })
                 if l_op != r_op => VSA::Leaf(HashSet::with_capacity(0)),
 
             #[rustfmt::skip]
-            (VSA::Join { op, children: l_children }, VSA::Join { op: _, children: r_children }) 
-                => VSA::Join { 
-                    op: *op, 
-                    children: l_children.iter().zip(r_children).map(|(l, r)| Rc::new(l.intersect(r))).collect() 
+            (VSA::Join { op, children: l_children }, VSA::Join { op: _, children: r_children })
+                => VSA::Join {
+                    op: *op,
+                    children: l_children.iter().zip(r_children).map(|(l, r)| Rc::new(l.intersect(r))).collect()
                 },
 
             #[rustfmt::skip]
             (VSA::Join { op, children }, VSA::Leaf(s)) | (VSA::Leaf(s), VSA::Join { op, children })
                 => VSA::Leaf(s.iter().filter(|pj| {
                     match pj.as_ref() {
-                        AST::App { fun, args } if fun == op => 
+                        AST::App { fun, args } if fun == op =>
                             args.iter().all(|arg| children.iter().any(|cs| cs.clone().contains(arg))),
                         _ => false
                     }
@@ -116,14 +124,14 @@ where
         todo!()
     }
 
-    fn pick_one(&self) -> AST<L, F> {
+    pub fn pick_one(&self) -> AST<L, F> {
         match self {
             VSA::Leaf(s) => s.iter().next().unwrap().as_ref().clone(),
             VSA::Union(s) => s[0].pick_one(),
             VSA::Join { op, children } => AST::App {
                 fun: *op,
                 args: children.iter().map(|vsa| vsa.pick_one()).collect(),
-            }
+            },
         }
     }
 
@@ -150,7 +158,10 @@ where
                 let ns = children.iter().map(|vsa| VSA::cluster(vsa.clone(), input));
                 VSA::group_by(
                     ns.map(|m| {
-                        let ast = AST::App { fun: *op, args: m.keys().map(|l| AST::Lit(l.clone())).collect() };
+                        let ast = AST::App {
+                            fun: *op,
+                            args: m.keys().map(|l| AST::Lit(l.clone())).collect(),
+                        };
                         let res = ast.eval(input);
                         (res, vsa.clone())
                     })
@@ -228,11 +239,8 @@ where
     pub fn eval(&self, inp: &L) -> L {
         match self {
             AST::Lit(l) => l.clone(),
-            AST::App { fun, args} => {
-                let evaled = args
-                    .iter()
-                    .map(|ast| ast.eval(inp))
-                    .collect::<Vec<_>>();
+            AST::App { fun, args } => {
+                let evaled = args.iter().map(|ast| ast.eval(inp)).collect::<Vec<_>>();
                 fun.eval(&evaled)
             }
         }
