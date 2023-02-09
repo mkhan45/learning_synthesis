@@ -11,6 +11,11 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
 }
 
 fn learn(inp: &Lit, out: &Lit) -> VSA {
+    // TODO: does the algorithm just not work?
+    // make worklist a queue of (f, l), where l is the output to learn
+    // and f(l) adds it to a VSA?
+    //
+    // might have to use holes like the normal top down
     match out {
         Lit::StringConst(s) if s.as_str() == " " => {
             VSA::singleton(AST::Lit(Lit::StringConst(" ".to_string())))
@@ -30,25 +35,57 @@ fn learn(inp: &Lit, out: &Lit) -> VSA {
                     ],
                 }
             }
+            Lit::StringConst(inp_str) => {
+                // TODO: need a worklist so it's BFS instead of DFS
+                let set = (1..inp_str.len() - 1)
+                    .map(|i| VSA::Join {
+                        op: Fun::Concat,
+                        children: vec![
+                            Rc::new(VSA::Join {
+                                op: Fun::Slice,
+                                children: vec![
+                                    Rc::new(VSA::singleton(AST::Lit(Lit::Input))),
+                                    Rc::new(VSA::singleton(AST::Lit(Lit::LocConst(i)))),
+                                ],
+                            }),
+                            Rc::new(learn(inp, &Lit::StringConst(inp_str[i + 1..].to_string()))),
+                        ],
+                    })
+                    .map(Rc::new)
+                    .collect();
+
+                VSA::Union(set)
+            }
             _ => panic!(),
         },
 
         Lit::LocConst(n) => match inp {
-            Lit::StringConst(s) if *n == s.len() - 1 => VSA::singleton(AST::Lit(Lit::LocEnd)),
-            Lit::StringConst(s) => {
-                // has to be a find
-                // assume lhs is always gonna be the input
+            Lit::StringConst(s) if *n == s.len() => VSA::singleton(AST::Lit(Lit::LocEnd)),
+            Lit::StringConst(s) if s.chars().nth(*n - 1).unwrap_or('.') == ' ' => {
                 let lhs = AST::Lit(Lit::Input);
-                let rhs = learn(
-                    inp,
-                    &Lit::StringConst(s.chars().nth(*n).unwrap().to_string()),
-                );
+                let rhs = AST::Lit(Lit::StringConst(" ".to_string()));
                 VSA::Join {
                     op: Fun::Find,
-                    children: vec![Rc::new(VSA::singleton(lhs)), Rc::new(rhs)],
+                    children: vec![Rc::new(VSA::singleton(lhs)), Rc::new(VSA::singleton(rhs))],
                 }
             }
-            _ => panic!(),
+            // Lit::StringConst(s) => {
+            //     dbg!();
+            //     // has to be a find
+            //     // assume lhs is always gonna be the input
+            //     let lhs = AST::Lit(Lit::Input);
+            //     let rhs = learn(
+            //         inp,
+            //         &Lit::StringConst(s.chars().nth(*n).unwrap().to_string()),
+            //     );
+            //     VSA::Join {
+            //         op: Fun::Find,
+            //         children: vec![Rc::new(VSA::singleton(lhs)), Rc::new(rhs)],
+            //     }
+            // }
+            _ => VSA::Union([
+                Rc::new(learn(inp, &Lit::LocConst(n + 1))),
+            ].into_iter().collect())
         },
 
         Lit::Input => panic!(),
@@ -62,6 +99,6 @@ pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {
 pub fn examples() -> Vec<(Lit, Lit)> {
     vec![(
         Lit::StringConst("Abc Def".to_string()),
-        Lit::StringConst("Abc".to_string()),
+        Lit::StringConst("A D".to_string()),
     )]
 }

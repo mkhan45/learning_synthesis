@@ -1,4 +1,4 @@
-use std::{collections::HashMap, collections::HashSet, rc::Rc};
+use std::{collections::HashMap, collections::HashSet, rc::Rc, fmt::Display};
 
 pub trait Language<L> {
     fn eval(&self, args: &[L]) -> L;
@@ -243,6 +243,22 @@ where
                 let evaled = args.iter().map(|ast| ast.eval(inp)).collect::<Vec<_>>();
                 fun.eval(&evaled)
             }
+        }
+    }
+}
+
+impl<L, F> Display for AST<L, F>
+where
+    L: Clone + std::hash::Hash + std::fmt::Debug,
+    F: Language<L> + Copy + std::hash::Hash + std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AST::App { fun, args } => {
+                let args = args.iter().fold(String::new(), |acc, arg| format!("{}{} ", acc, arg));
+                write!(f, "({:?} [ {}])", fun, args)
+            }
+            AST::Lit(l) => write!(f, "{:?}", l),
         }
     }
 }

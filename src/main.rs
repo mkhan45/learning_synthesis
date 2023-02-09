@@ -31,5 +31,5 @@ fn main() {
     // dbg!(prog);
 
     let examples = enumerative::vsa_examples();
-    dbg!(top_down_vsa(&examples));
+    println!("{}", top_down_vsa(&examples));
 }
