@@ -124,13 +124,20 @@ where
         todo!()
     }
 
-    pub fn pick_one(&self) -> AST<L, F> {
+    pub fn pick_one(&self) -> Option<AST<L, F>> {
         match self {
-            VSA::Leaf(s) => s.iter().next().unwrap().as_ref().clone(),
-            VSA::Union(s) => s[0].pick_one(),
-            VSA::Join { op, children } => AST::App {
-                fun: *op,
-                args: children.iter().map(|vsa| vsa.pick_one()).collect(),
+            VSA::Leaf(s) => s.iter().next().map(|x| x.as_ref().clone()),
+            VSA::Union(s) => s.iter().find_map(|vsa| vsa.pick_one()),
+            VSA::Join { op, children } => {
+                let mut args = children.iter().map(|vsa| vsa.pick_one());
+                if args.any(|picked| picked.is_none()) {
+                    None
+                } else {
+                    Some(AST::App {
+                        fun: *op,
+                        args: children.iter().map(|vsa| vsa.pick_one().unwrap()).collect(),
+                    })
+                }
             },
         }
     }
@@ -139,20 +146,20 @@ where
         match vsa.as_ref() {
             VSA::Leaf(s) => VSA::group_by(
                 s.iter()
-                    .map(|p| {
-                        (
-                            p.eval(input),
-                            Rc::new(VSA::Leaf(std::iter::once(p.clone()).collect())),
-                        )
-                    })
-                    .collect(),
+                .map(|p| {
+                    (
+                        p.eval(input),
+                        Rc::new(VSA::Leaf(std::iter::once(p.clone()).collect())),
+                    )
+                })
+                .collect(),
             ),
             VSA::Union(s) => VSA::group_by(
                 // the union of all the clusters
                 s.iter()
-                    .map(|vsa| VSA::cluster(vsa.clone(), input))
-                    .reduce(|a, b| a.into_iter().chain(b.into_iter()).collect())
-                    .unwrap(),
+                .map(|vsa| VSA::cluster(vsa.clone(), input))
+                .reduce(|a, b| a.into_iter().chain(b.into_iter()).collect())
+                .unwrap(),
             ),
             VSA::Join { op, children } => {
                 let ns = children.iter().map(|vsa| VSA::cluster(vsa.clone(), input));
@@ -215,8 +222,8 @@ impl Language<Lit> for Fun {
             Fun::Find => match args {
                 [Lit::StringConst(outer), Lit::StringConst(inner)] => outer
                     .find(inner)
-                    .map(|l| Lit::LocConst(l))
-                    .unwrap_or(Lit::LocEnd),
+                        .map(|l| Lit::LocConst(l))
+                        .unwrap_or(Lit::LocEnd),
                 _ => panic!(),
             },
             Fun::Slice => match args {

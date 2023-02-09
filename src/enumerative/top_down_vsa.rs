@@ -9,12 +9,12 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
     // i dont want to think about loops right now
     let (inp, out) = &examples[0];
     let vsa1 = learn(inp, out, &mut HashMap::new(), &mut HashSet::new());
+    println!("VSA 1: {}", vsa1.pick_one().unwrap());
 
     let (inp2, out2) = &examples[1];
     let vsa2 = learn(inp2, out2, &mut HashMap::new(), &mut HashSet::new());
 
-    println!("VSA 1: {}", vsa1.pick_one());
-    println!("VSA 2: {}", vsa2.pick_one());
+    println!("VSA 2: {}", vsa2.pick_one().unwrap());
     vsa1.intersect(&vsa2)
 }
 
@@ -124,18 +124,18 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
 }
 
 pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {
-    top_down(examples).pick_one()
+    top_down(examples).pick_one().unwrap()
 }
 
 pub fn examples() -> Vec<(Lit, Lit)> {
     vec![
         (
             Lit::StringConst("Abc Def".to_string()),
-            Lit::StringConst("AD".to_string()),
+            Lit::StringConst("Abc".to_string()),
         ),
         (
             Lit::StringConst("QWErty Uiop".to_string()),
-            Lit::StringConst("QU".to_string()),
+            Lit::StringConst("QWErty".to_string()),
         )
     ]
 }
