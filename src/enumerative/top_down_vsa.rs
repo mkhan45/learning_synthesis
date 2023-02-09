@@ -6,6 +6,7 @@ type VSA = crate::vsa::VSA<Lit, Fun>;
 type AST = crate::vsa::AST<Lit, Fun>;
 
 fn top_down(examples: &[(Lit, Lit)]) -> VSA {
+    // i dont want to think about loops right now
     let (inp, out) = &examples[0];
     let vsa1 = learn(inp, out);
 

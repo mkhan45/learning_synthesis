@@ -28,8 +28,9 @@ Roughly following these to learn synthesis
 Goals:
 - [X] Bottom Up
 - [X] Top Down
-    - [ ] Better pruning
-- Figure out VSAs?
+- [X] Figure out VSAs?
+    - kind of but I dont have a good algorithm to use them
+    - [X] Top down with inverse semantics and a VSA but it's not very good
 - [ ] Duet approach
     - https://dl.acm.org/doi/10.1145/3434335
 - [ ] Middle Out?
