@@ -28,6 +28,9 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
     // and f(l) adds it to a VSA?
     //
     // might have to use holes like the normal top down
+    //
+    // TODO: I should probably unionize all of the cases
+    // so that if multiple match we dont lose any options
     let res = Rc::new(match out {
         Lit::StringConst(s) if s.as_str() == " " => {
             VSA::singleton(AST::Lit(Lit::StringConst(" ".to_string())))
@@ -89,10 +92,12 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
             //     let rhs = learn(
             //         inp,
             //         &Lit::StringConst(s.chars().nth(*n).unwrap().to_string()),
+            //         cache,
+            //         visited,
             //     );
             //     VSA::Join {
             //         op: Fun::Find,
-            //         children: vec![Rc::new(VSA::singleton(lhs)), Rc::new(rhs)],
+            //         children: vec![Rc::new(VSA::singleton(lhs)), rhs],
             //     }
             // }
             _ => VSA::Union([
@@ -118,6 +123,12 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
 
     cache.insert(out.clone(), res.clone());
     res
+}
+
+fn bottom_up(inp: &Lit, out: &Lit) -> Rc<VSA> {
+    // builds a VSA for a given I/O example
+    // then we can add these to the cache for `learn`
+    todo!()
 }
 
 pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {
