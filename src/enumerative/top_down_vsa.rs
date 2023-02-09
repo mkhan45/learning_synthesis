@@ -1,4 +1,4 @@
-use std::{rc::Rc, collections::{HashMap, HashSet}, sync::{Mutex, Arc, RwLock}, cell::RefCell, borrow::{BorrowMut, Borrow}};
+use std::{rc::Rc, collections::{HashMap, HashSet}};
 
 use crate::vsa::{Fun, Lit};
 
@@ -6,16 +6,13 @@ type VSA = crate::vsa::VSA<Lit, Fun>;
 type AST = crate::vsa::AST<Lit, Fun>;
 
 fn top_down(examples: &[(Lit, Lit)]) -> VSA {
-    // i dont want to think about loops right now
-    let (inp, out) = &examples[0];
-    let vsa1 = learn(inp, out, &mut HashMap::new(), &mut HashSet::new());
-    println!("VSA 1: {}", vsa1.pick_one().unwrap());
-
-    let (inp2, out2) = &examples[1];
-    let vsa2 = learn(inp2, out2, &mut HashMap::new(), &mut HashSet::new());
-
-    println!("VSA 2: {}", vsa2.pick_one().unwrap());
-    vsa1.intersect(&vsa2)
+    examples
+        .into_iter()
+        .map(|(inp, out)| learn(inp, out, &mut HashMap::new(), &mut HashSet::new()))
+        .reduce(|a, b| Rc::new(a.intersect(b.as_ref())))
+        .unwrap()
+        .as_ref()
+        .clone()
 }
 
 fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut HashSet<Lit>) -> Rc<VSA> {
@@ -131,11 +128,15 @@ pub fn examples() -> Vec<(Lit, Lit)> {
     vec![
         (
             Lit::StringConst("Abc Def".to_string()),
-            Lit::StringConst("Abc".to_string()),
+            Lit::StringConst("A D".to_string()),
         ),
         (
             Lit::StringConst("QWErty Uiop".to_string()),
-            Lit::StringConst("QWErty".to_string()),
+            Lit::StringConst("Q U".to_string()),
+        ),
+        (
+            Lit::StringConst("First Last".to_string()),
+            Lit::StringConst("F L".to_string()),
         )
     ]
 }

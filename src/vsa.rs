@@ -4,7 +4,7 @@ pub trait Language<L> {
     fn eval(&self, args: &[L]) -> L;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum VSA<L, F>
 where
     L: Clone + Eq + std::hash::Hash + std::fmt::Debug,
