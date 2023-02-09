@@ -1,4 +1,5 @@
 #![feature(io_error_other)]
+#![feature(local_key_cell_methods)]
 
 use enumerative::top_down_vsa;
 

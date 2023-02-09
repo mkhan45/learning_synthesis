@@ -177,7 +177,8 @@ pub enum Fun {
     Concat,
     Find,
     Slice,
-    LocInc,
+    LocAdd,
+    LocSub,
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
@@ -228,9 +229,15 @@ impl Language<Lit> for Fun {
                 [Lit::StringConst(_), Lit::LocEnd, _] => Lit::StringConst("".to_owned()),
                 _ => panic!(),
             },
-            Fun::LocInc => match args {
-                [Lit::LocConst(n)] => {
-                    Lit::LocConst(n+1)
+            Fun::LocAdd => match args {
+                [Lit::LocConst(a), Lit::LocConst(b)] => {
+                    Lit::LocConst(a+b)
+                }
+                _ => panic!(),
+            },
+            Fun::LocSub => match args {
+                [Lit::LocConst(a), Lit::LocConst(b)] => {
+                    Lit::LocConst(a-b)
                 }
                 _ => panic!(),
             },
@@ -256,7 +263,6 @@ where
 
 impl Display for AST<Lit, Fun> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        dbg!(self);
         match self {
             AST::App { fun: Fun::Concat, args } => {
                 // assume it's only 2 args bc it shouldnt be variadic anyway
@@ -272,9 +278,15 @@ impl Display for AST<Lit, Fun> {
                 let (fst, snd) = (args[0].clone(), args[1].clone());
                 write!(f, "(X[{fst}..{snd}])")
             }
-            AST::App { fun: Fun::LocInc, args } => {
-                let arg = args[0].clone();
-                write!(f, "({arg} + 1)")
+            AST::App { fun: Fun::LocAdd, args } => {
+                let a = args[0].clone();
+                let b = args[1].clone();
+                write!(f, "({a} + {b})")
+            }
+            AST::App { fun: Fun::LocSub, args } => {
+                let a = args[0].clone();
+                let b = args[1].clone();
+                write!(f, "({a} - {b})")
             }
             AST::Lit(Lit::StringConst(s)) => write!(f, "'{}'", s),
             AST::Lit(Lit::LocConst(n)) => write!(f, "{}", n),
