@@ -7,10 +7,18 @@ type AST = crate::vsa::AST<Lit, Fun>;
 
 fn top_down(examples: &[(Lit, Lit)]) -> VSA {
     let (inp, out) = &examples[0];
-    learn(inp, out)
+    let vsa1 = learn(inp, out);
+
+    let (inp2, out2) = &examples[1];
+    let vsa2 = learn(inp2, out2);
+
+    println!("VSA 1: {}", vsa1.pick_one());
+    println!("VSA 2: {}", vsa2.pick_one());
+    vsa1.intersect(&vsa2)
 }
 
 fn learn(inp: &Lit, out: &Lit) -> VSA {
+    dbg!();
     // TODO: does the algorithm just not work?
     // make worklist a queue of (f, l), where l is the output to learn
     // and f(l) adds it to a VSA?
@@ -36,7 +44,6 @@ fn learn(inp: &Lit, out: &Lit) -> VSA {
                 }
             }
             Lit::StringConst(inp_str) => {
-                // TODO: need a worklist so it's BFS instead of DFS
                 let set = (1..inp_str.len() - 1)
                     .map(|i| VSA::Join {
                         op: Fun::Concat,
@@ -44,7 +51,7 @@ fn learn(inp: &Lit, out: &Lit) -> VSA {
                             Rc::new(VSA::Join {
                                 op: Fun::Slice,
                                 children: vec![
-                                    Rc::new(VSA::singleton(AST::Lit(Lit::Input))),
+                                    Rc::new(VSA::singleton(AST::Lit(Lit::LocConst(0)))),
                                     Rc::new(VSA::singleton(AST::Lit(Lit::LocConst(i)))),
                                 ],
                             }),
@@ -84,7 +91,7 @@ fn learn(inp: &Lit, out: &Lit) -> VSA {
             //     }
             // }
             _ => VSA::Union([
-                Rc::new(learn(inp, &Lit::LocConst(n + 1))),
+                Rc::new(VSA::Join { op: Fun::LocInc, children: vec![Rc::new(learn(inp, &Lit::LocConst(n - 1)))] }),
             ].into_iter().collect())
         },
 
@@ -97,8 +104,14 @@ pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {
 }
 
 pub fn examples() -> Vec<(Lit, Lit)> {
-    vec![(
-        Lit::StringConst("Abc Def".to_string()),
-        Lit::StringConst("A D".to_string()),
-    )]
+    vec![
+        (
+            Lit::StringConst("Abc Def".to_string()),
+            Lit::StringConst("Abc ".to_string()),
+        ),
+        (
+            Lit::StringConst("QWErty Uiop".to_string()),
+            Lit::StringConst("QWErty ".to_string()),
+        )
+    ]
 }

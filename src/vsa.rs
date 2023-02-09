@@ -67,7 +67,7 @@ where
 
     // https://dl.acm.org/doi/pdf/10.1145/2858965.2814310
     // page 10
-    fn intersect(&self, other: &VSA<L, F>) -> VSA<L, F> {
+    pub fn intersect(&self, other: &VSA<L, F>) -> VSA<L, F> {
         match (self, other) {
             (vsa, VSA::Union(union)) | (VSA::Union(union), vsa) => VSA::Union(
                 union
@@ -177,6 +177,7 @@ pub enum Fun {
     Concat,
     Find,
     Slice,
+    LocInc,
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
@@ -227,6 +228,12 @@ impl Language<Lit> for Fun {
                 [Lit::StringConst(_), Lit::LocEnd, _] => Lit::StringConst("".to_owned()),
                 _ => panic!(),
             },
+            Fun::LocInc => match args {
+                [Lit::LocConst(n)] => {
+                    Lit::LocConst(n+1)
+                }
+                _ => panic!(),
+            },
         }
     }
 }
@@ -247,18 +254,48 @@ where
     }
 }
 
-impl<L, F> Display for AST<L, F>
-where
-    L: Clone + std::hash::Hash + std::fmt::Debug,
-    F: Language<L> + Copy + std::hash::Hash + std::fmt::Debug,
-{
+impl Display for AST<Lit, Fun> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        dbg!(self);
         match self {
-            AST::App { fun, args } => {
-                let args = args.iter().fold(String::new(), |acc, arg| format!("{}{} ", acc, arg));
-                write!(f, "({:?} [ {}])", fun, args)
+            AST::App { fun: Fun::Concat, args } => {
+                // assume it's only 2 args bc it shouldnt be variadic anyway
+                let (fst, snd) = (args[0].clone(), args[1].clone());
+                write!(f, "({fst} <> {snd})")
             }
-            AST::Lit(l) => write!(f, "{:?}", l),
+            AST::App { fun: Fun::Find, args } => {
+                let (fst, snd) = (args[0].clone(), args[1].clone());
+                write!(f, "{fst}.find({snd})")
+            }
+            AST::App { fun: Fun::Slice, args } => {
+                // assume only input is sliced
+                let (fst, snd) = (args[0].clone(), args[1].clone());
+                write!(f, "(X[{fst}..{snd}])")
+            }
+            AST::App { fun: Fun::LocInc, args } => {
+                let arg = args[0].clone();
+                write!(f, "({arg} + 1)")
+            }
+            AST::Lit(Lit::StringConst(s)) => write!(f, "'{}'", s),
+            AST::Lit(Lit::LocConst(n)) => write!(f, "{}", n),
+            AST::Lit(Lit::LocEnd) => write!(f, "$"),
+            AST::Lit(Lit::Input) => write!(f, "X"),
         }
     }
 }
+
+// impl<L, F> Display for AST<L, F>
+// where
+//     L: Clone + std::hash::Hash + std::fmt::Debug,
+//     F: Language<L> + Copy + std::hash::Hash + std::fmt::Debug,
+// {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         match self {
+//             AST::App { fun, args } => {
+//                 let args = args.iter().fold(String::new(), |acc, arg| format!("{}{} ", acc, arg));
+//                 write!(f, "({:?} [ {}])", fun, args)
+//             }
+//             AST::Lit(l) => write!(f, "{:?}", l),
+//         }
+//     }
+// }
