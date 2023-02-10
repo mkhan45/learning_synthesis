@@ -1,4 +1,4 @@
-use std::{collections::HashMap, collections::HashSet, rc::Rc, fmt::Display};
+use std::{collections::HashMap, collections::HashSet, fmt::Display, rc::Rc};
 
 pub trait Language<L> {
     fn eval(&self, args: &[L]) -> L;
@@ -139,7 +139,7 @@ where
                         args: children.iter().map(|vsa| vsa.pick_one().unwrap()).collect(),
                     })
                 }
-            },
+            }
         }
     }
 
@@ -147,20 +147,20 @@ where
         match vsa.as_ref() {
             VSA::Leaf(s) => VSA::group_by(
                 s.iter()
-                .map(|p| {
-                    (
-                        p.eval(input),
-                        Rc::new(VSA::Leaf(std::iter::once(p.clone()).collect())),
-                    )
-                })
-                .collect(),
+                    .map(|p| {
+                        (
+                            p.eval(input),
+                            Rc::new(VSA::Leaf(std::iter::once(p.clone()).collect())),
+                        )
+                    })
+                    .collect(),
             ),
             VSA::Union(s) => VSA::group_by(
                 // the union of all the clusters
                 s.iter()
-                .map(|vsa| VSA::cluster(vsa.clone(), input))
-                .reduce(|a, b| a.into_iter().chain(b.into_iter()).collect())
-                .unwrap(),
+                    .map(|vsa| VSA::cluster(vsa.clone(), input))
+                    .reduce(|a, b| a.into_iter().chain(b.into_iter()).collect())
+                    .unwrap(),
             ),
             VSA::Join { op, children } => {
                 let ns = children.iter().map(|vsa| VSA::cluster(vsa.clone(), input));
@@ -223,8 +223,8 @@ impl Language<Lit> for Fun {
             Fun::Find => match args {
                 [Lit::StringConst(outer), Lit::StringConst(inner)] => outer
                     .find(inner)
-                        .map(|l| Lit::LocConst(l))
-                        .unwrap_or(Lit::LocEnd),
+                    .map(|l| Lit::LocConst(l))
+                    .unwrap_or(Lit::LocEnd),
                 _ => panic!(),
             },
             Fun::Slice => match args {
@@ -238,15 +238,11 @@ impl Language<Lit> for Fun {
                 _ => panic!(),
             },
             Fun::LocAdd => match args {
-                [Lit::LocConst(a), Lit::LocConst(b)] => {
-                    Lit::LocConst(a+b)
-                }
+                [Lit::LocConst(a), Lit::LocConst(b)] => Lit::LocConst(a + b),
                 _ => panic!(),
             },
             Fun::LocSub => match args {
-                [Lit::LocConst(a), Lit::LocConst(b)] => {
-                    Lit::LocConst(a-b)
-                }
+                [Lit::LocConst(a), Lit::LocConst(b)] => Lit::LocConst(a - b),
                 _ => panic!(),
             },
         }
@@ -267,31 +263,53 @@ where
             }
         }
     }
+
+    pub fn size(&self) -> usize {
+        match self {
+            AST::Lit(_) => 1,
+            AST::App { args, .. } => 1 + args.iter().map(AST::size).sum::<usize>(),
+        }
+    }
 }
 
 impl Display for AST<Lit, Fun> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AST::App { fun: Fun::Concat, args } => {
+            AST::App {
+                fun: Fun::Concat,
+                args,
+            } => {
                 // assume it's only 2 args bc it shouldnt be variadic anyway
                 let (fst, snd) = (args[0].clone(), args[1].clone());
                 write!(f, "({fst} <> {snd})")
             }
-            AST::App { fun: Fun::Find, args } => {
+            AST::App {
+                fun: Fun::Find,
+                args,
+            } => {
                 let (fst, snd) = (args[0].clone(), args[1].clone());
                 write!(f, "{fst}.find({snd})")
             }
-            AST::App { fun: Fun::Slice, args } => {
+            AST::App {
+                fun: Fun::Slice,
+                args,
+            } => {
                 // assume only input is sliced
                 let (fst, snd) = (args[0].clone(), args[1].clone());
                 write!(f, "(X[{fst}..{snd}])")
             }
-            AST::App { fun: Fun::LocAdd, args } => {
+            AST::App {
+                fun: Fun::LocAdd,
+                args,
+            } => {
                 let a = args[0].clone();
                 let b = args[1].clone();
                 write!(f, "({a} + {b})")
             }
-            AST::App { fun: Fun::LocSub, args } => {
+            AST::App {
+                fun: Fun::LocSub,
+                args,
+            } => {
                 let a = args[0].clone();
                 let b = args[1].clone();
                 write!(f, "({a} - {b})")
@@ -314,7 +332,9 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AST::App { fun, args } => {
-                let args = args.iter().fold(String::new(), |acc, arg| format!("{}{} ", acc, arg));
+                let args = args
+                    .iter()
+                    .fold(String::new(), |acc, arg| format!("{}{} ", acc, arg));
                 write!(f, "({:?} [ {}])", fun, args)
             }
             AST::Lit(l) => write!(f, "{:?}", l),

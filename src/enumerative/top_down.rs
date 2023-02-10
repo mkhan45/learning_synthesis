@@ -2,6 +2,8 @@ use std::collections::VecDeque;
 
 use crate::lang::*;
 
+// i think this implementation is basically just
+// slower bottom up, since it doesnt use inverse semantics
 pub fn top_down(examples: &[(StringExpr, StringExpr)]) -> Option<StringExpr> {
     use StringExpr::*;
 

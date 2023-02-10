@@ -1,5 +1,6 @@
 #![feature(io_error_other)]
 #![feature(local_key_cell_methods)]
+#![feature(is_some_and)]
 
 use enumerative::top_down_vsa;
 

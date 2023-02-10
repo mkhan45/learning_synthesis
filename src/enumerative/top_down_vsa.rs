@@ -1,4 +1,7 @@
-use std::{rc::Rc, collections::{HashMap, HashSet}};
+use std::{
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 
 use crate::vsa::{Fun, Lit};
 
@@ -6,16 +9,24 @@ type VSA = crate::vsa::VSA<Lit, Fun>;
 type AST = crate::vsa::AST<Lit, Fun>;
 
 fn top_down(examples: &[(Lit, Lit)]) -> VSA {
+    let mut bank = Vec::new();
+
     examples
         .into_iter()
-        .map(|(inp, out)| learn(inp, out, &mut HashMap::new(), &mut HashSet::new()))
+        .map(|(inp, out)| learn(inp, out, &mut HashMap::new(), &mut HashSet::new(), &mut bank))
         .reduce(|a, b| Rc::new(a.intersect(b.as_ref())))
         .unwrap()
         .as_ref()
         .clone()
 }
 
-fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut HashSet<Lit>) -> Rc<VSA> {
+fn learn(
+    inp: &Lit,
+    out: &Lit,
+    cache: &mut HashMap<Lit, Rc<VSA>>,
+    visited: &mut HashSet<Lit>,
+    bank: &mut Vec<AST>,
+) -> Rc<VSA> {
     if let Some(res) = cache.get(out) {
         return res.clone();
     }
@@ -46,8 +57,8 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
                 VSA::Join {
                     op: Fun::Slice,
                     children: vec![
-                        learn(inp, &Lit::LocConst(start), cache, visited),
-                        learn(inp, &Lit::LocConst(end), cache, visited),
+                        learn(inp, &Lit::LocConst(start), cache, visited, bank),
+                        learn(inp, &Lit::LocConst(end), cache, visited, bank),
                     ],
                 }
             }
@@ -63,7 +74,13 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
                                     Rc::new(VSA::singleton(AST::Lit(Lit::LocConst(i)))),
                                 ],
                             }),
-                            learn(inp, &Lit::StringConst(s[i + 1..].to_string()), cache, visited),
+                            learn(
+                                inp,
+                                &Lit::StringConst(s[i + 1..].to_string()),
+                                cache,
+                                visited,
+                                bank,
+                            ),
                         ],
                     })
                     .map(Rc::new)
@@ -74,6 +91,7 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
             _ => panic!(),
         },
 
+        // TODO: fix bad inverse semantics for find, when there are multiple occurences
         Lit::LocConst(n) => match inp {
             Lit::StringConst(s) if *n == s.len() => VSA::singleton(AST::Lit(Lit::LocEnd)),
             Lit::StringConst(s) if s.chars().nth(*n - 1).unwrap_or('.') == ' ' => {
@@ -84,6 +102,14 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
                     children: vec![Rc::new(VSA::singleton(lhs)), Rc::new(VSA::singleton(rhs))],
                 }
             }
+            // Lit::StringConst(s) if s.chars().nth(*n - 1).is_some_and(|x| x.is_digit(10)) => {
+            //     let lhs = AST::Lit(Lit::Input);
+            //     let rhs = AST::Lit(Lit::StringConst("\\d".to_string()));
+            //     VSA::Join {
+            //         op: Fun::Find,
+            //         children: vec![Rc::new(VSA::singleton(lhs)), Rc::new(VSA::singleton(rhs))],
+            //     }
+            // }
             // Lit::StringConst(s) => {
             //     dbg!();
             //     // has to be a find
@@ -100,17 +126,26 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
             //         children: vec![Rc::new(VSA::singleton(lhs)), rhs],
             //     }
             // }
-            _ => VSA::Union([
-                Rc::new(VSA::Join { op: Fun::LocAdd, children: vec![
-                    learn(inp, &Lit::LocConst(n - 1), cache, visited),
-                    learn(inp, &Lit::LocConst(1), cache, visited),
-                ] }),
-
-                Rc::new(VSA::Join { op: Fun::LocSub, children: vec![
-                    learn(inp, &Lit::LocConst(n + 1), cache, visited),
-                    learn(inp, &Lit::LocConst(1), cache, visited),
-                ] }),
-            ].into_iter().collect())
+            _ => VSA::Union(
+                [
+                    Rc::new(VSA::Join {
+                        op: Fun::LocAdd,
+                        children: vec![
+                            learn(inp, &Lit::LocConst(n - 1), cache, visited, bank),
+                            learn(inp, &Lit::LocConst(1), cache, visited, bank),
+                        ],
+                    }),
+                    Rc::new(VSA::Join {
+                        op: Fun::LocSub,
+                        children: vec![
+                            learn(inp, &Lit::LocConst(n + 1), cache, visited, bank),
+                            learn(inp, &Lit::LocConst(1), cache, visited, bank),
+                        ],
+                    }),
+                ]
+                .into_iter()
+                .collect(),
+            ),
         },
 
         Lit::Input => panic!(),
@@ -118,17 +153,32 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
 
     match res.as_ref() {
         VSA::Union(s) if s.is_empty() => todo!(), //bottom up?
-        _ => {},
+        _ => {}
     }
 
     cache.insert(out.clone(), res.clone());
     res
 }
 
-fn bottom_up(inp: &Lit, out: &Lit) -> Rc<VSA> {
+fn bottom_up(inp: &Lit, size: usize, cache: &mut HashMap<Lit, Rc<VSA>>, bank: &mut Vec<AST>) {
     // builds a VSA for a given I/O example
     // then we can add these to the cache for `learn`
-    todo!()
+
+    loop {
+        let adjs: Vec<AST> = Vec::new(); // TODO
+
+        for adj in adjs {
+            if adj.size() > size {
+                continue;
+            }
+
+            let out = adj.eval(inp);
+            if !cache.contains_key(&out) {
+                cache.insert(out, Rc::new(VSA::singleton(adj.clone())));
+                bank.push(adj);
+            }
+        }
+    }
 }
 
 pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {
@@ -138,16 +188,12 @@ pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {
 pub fn examples() -> Vec<(Lit, Lit)> {
     vec![
         (
-            Lit::StringConst("Abc Def".to_string()),
-            Lit::StringConst("A D".to_string()),
+            Lit::StringConst("AIX 5.1".to_string()),
+            Lit::StringConst("5.1".to_string()),
         ),
         (
-            Lit::StringConst("QWErty Uiop".to_string()),
-            Lit::StringConst("Q U".to_string()),
+            Lit::StringConst("Linux Linux 2.6 Linux".to_string()),
+            Lit::StringConst("2.6".to_string()),
         ),
-        (
-            Lit::StringConst("First Last".to_string()),
-            Lit::StringConst("F L".to_string()),
-        )
     ]
 }
