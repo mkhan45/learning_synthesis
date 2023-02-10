@@ -3,13 +3,20 @@ use std::{
     rc::Rc,
 };
 
+use itertools::iproduct;
+
 use crate::vsa::{Fun, Lit};
 
 type VSA = crate::vsa::VSA<Lit, Fun>;
 type AST = crate::vsa::AST<Lit, Fun>;
 
 fn top_down(examples: &[(Lit, Lit)]) -> VSA {
-    let mut bank = Vec::new();
+    let mut bank = vec![
+        AST::Lit(Lit::Input),
+        AST::Lit(Lit::StringConst(" ".to_string())),
+        AST::Lit(Lit::LocConst(0)),
+        AST::Lit(Lit::LocConst(1)),
+    ];
 
     examples
         .into_iter()
@@ -35,6 +42,10 @@ fn learn(
     visited: &mut HashSet<Lit>,
     bank: &mut Vec<AST>,
 ) -> Rc<VSA> {
+    let size = 4;
+    bottom_up(inp, size, cache, bank);
+    dbg!(cache.len());
+
     if let Some(res) = cache.get(out) {
         return res.clone();
     }
@@ -192,12 +203,29 @@ fn bottom_up(inp: &Lit, size: usize, cache: &mut HashMap<Lit, Rc<VSA>>, bank: &m
                 )
             });
 
-            todo!()
-        };
+            let concats = iproduct!(strings.clone(), strings.clone()).map(|(lhs, rhs)| AST::App {
+                fun: Fun::Concat,
+                args: vec![lhs.clone(), rhs.clone()],
+            });
+
+            let slices = iproduct!(strings.clone(), locs.clone(), locs.clone()).map(
+                |(outer, start, end)| AST::App {
+                    fun: Fun::Slice,
+                    args: vec![
+                        outer.clone(),
+                        start.clone(),
+                        end.clone(),
+                    ]
+                },
+            );
+
+            concats.chain(slices)
+        }.collect::<Vec<_>>();
 
         for adj in adjs {
+            dbg!(&adj, adj.size());
             if adj.size() > size {
-                continue;
+                break;
             }
 
             let out = adj.eval(inp);
@@ -216,12 +244,12 @@ pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {
 pub fn examples() -> Vec<(Lit, Lit)> {
     vec![
         (
-            Lit::StringConst("AIX 5.1".to_string()),
-            Lit::StringConst("5.1".to_string()),
+            Lit::StringConst("Abc Def".to_string()),
+            Lit::StringConst("AD".to_string()),
         ),
         (
-            Lit::StringConst("Linux Linux 2.6 Linux".to_string()),
-            Lit::StringConst("2.6".to_string()),
+            Lit::StringConst("Hij Lmnop".to_string()),
+            Lit::StringConst("HL".to_string()),
         ),
     ]
 }

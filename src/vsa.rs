@@ -7,7 +7,7 @@ pub trait Language<L> {
 #[derive(Debug, Clone)]
 pub enum VSA<L, F>
 where
-    L: Clone + Eq + std::hash::Hash + std::fmt::Debug,
+    L: Clone + Eq + std::hash::Hash + std::fmt::Debug + InputLit,
     F: Language<L> + std::hash::Hash + std::fmt::Debug,
 {
     Leaf(HashSet<Rc<AST<L, F>>>),
@@ -17,7 +17,7 @@ where
 
 impl<L, F> Default for VSA<L, F>
 where
-    L: std::hash::Hash + Eq + Clone + std::fmt::Debug,
+    L: std::hash::Hash + Eq + Clone + std::fmt::Debug + InputLit,
     F: Language<L> + std::hash::Hash + std::fmt::Debug,
 {
     fn default() -> Self {
@@ -27,7 +27,7 @@ where
 
 impl<L, F> VSA<L, F>
 where
-    L: Clone + Eq + std::hash::Hash + std::fmt::Debug,
+    L: Clone + Eq + std::hash::Hash + std::fmt::Debug + InputLit,
     F: Language<L> + Eq + Copy + std::hash::Hash + std::fmt::Debug,
 {
     pub fn empty() -> Self {
@@ -189,6 +189,10 @@ pub enum Fun {
     LocSub,
 }
 
+pub trait InputLit {
+    fn is_input(&self) -> bool;
+}
+
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum Lit {
     StringConst(String),
@@ -197,10 +201,16 @@ pub enum Lit {
     Input,
 }
 
+impl InputLit for Lit {
+    fn is_input(&self) -> bool {
+        self == &Lit::Input
+    }
+}
+
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub enum AST<L, F>
 where
-    L: std::hash::Hash + std::fmt::Debug,
+    L: std::hash::Hash + std::fmt::Debug + InputLit,
     F: Language<L> + std::hash::Hash + std::fmt::Debug,
 {
     App { fun: F, args: Vec<AST<L, F>> },
@@ -215,7 +225,8 @@ impl Language<Lit> for Fun {
                 for arg in args {
                     match arg {
                         Lit::StringConst(s) => buf.push_str(s),
-                        _ => panic!(),
+                        // _ => panic!(),
+                        _ => { dbg!(arg); panic!() }
                     }
                 }
                 Lit::StringConst(buf)
@@ -228,14 +239,14 @@ impl Language<Lit> for Fun {
                 _ => panic!(),
             },
             Fun::Slice => match args {
-                [Lit::StringConst(s), Lit::LocConst(start), Lit::LocConst(end)] => {
+                [Lit::StringConst(s), Lit::LocConst(start), Lit::LocConst(end)] if start <= end && end <= &s.len() => {
                     Lit::StringConst(s[*start..*end].to_owned())
                 }
                 [Lit::StringConst(s), Lit::LocConst(start), Lit::LocEnd] => {
                     Lit::StringConst(s[*start..].to_owned())
                 }
                 [Lit::StringConst(_), Lit::LocEnd, _] => Lit::StringConst("".to_owned()),
-                _ => panic!(),
+                _ => Lit::StringConst(" ".to_string()),
             },
             Fun::LocAdd => match args {
                 [Lit::LocConst(a), Lit::LocConst(b)] => Lit::LocConst(a + b),
@@ -251,11 +262,12 @@ impl Language<Lit> for Fun {
 
 impl<L, F> AST<L, F>
 where
-    L: Clone + std::hash::Hash + std::fmt::Debug,
+    L: Clone + std::hash::Hash + std::fmt::Debug + InputLit,
     F: Language<L> + Copy + std::hash::Hash + std::fmt::Debug,
 {
     pub fn eval(&self, inp: &L) -> L {
         match self {
+            AST::Lit(l) if l.is_input() => inp.clone(),
             AST::Lit(l) => l.clone(),
             AST::App { fun, args } => {
                 let evaled = args.iter().map(|ast| ast.eval(inp)).collect::<Vec<_>>();
@@ -326,7 +338,7 @@ trait DefaultASTDisplay {}
 
 impl<L, F> Display for AST<L, F>
 where
-    L: Clone + std::hash::Hash + std::fmt::Debug,
+    L: Clone + std::hash::Hash + std::fmt::Debug + InputLit,
     F: Language<L> + Copy + std::hash::Hash + std::fmt::Debug + DefaultASTDisplay,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
