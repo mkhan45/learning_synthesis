@@ -39,17 +39,18 @@ where
     }
 
     fn eval(&self, inp: &L) -> L {
-        match self {
-            VSA::Leaf(c) => c.iter().next().unwrap().clone().eval(inp),
-            VSA::Union(c) => c[0].eval(inp),
-            VSA::Join { op, children } => {
-                let cs = children
-                    .iter()
-                    .map(|vsa| vsa.clone().eval(inp))
-                    .collect::<Vec<_>>();
-                op.eval(&cs)
-            }
-        }
+        self.pick_one().unwrap().eval(inp)
+        // match self {
+        //     VSA::Leaf(c) => c.iter().next().unwrap().clone().eval(inp),
+        //     VSA::Union(c) => c[0].eval(inp),
+        //     VSA::Join { op, children } => {
+        //         let cs = children
+        //             .iter()
+        //             .map(|vsa| vsa.clone().eval(inp))
+        //             .collect::<Vec<_>>();
+        //         op.eval(&cs)
+        //     }
+        // }
     }
 
     fn contains(&self, program: &AST<L, F>) -> bool {
@@ -303,18 +304,20 @@ impl Display for AST<Lit, Fun> {
     }
 }
 
-// impl<L, F> Display for AST<L, F>
-// where
-//     L: Clone + std::hash::Hash + std::fmt::Debug,
-//     F: Language<L> + Copy + std::hash::Hash + std::fmt::Debug,
-// {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self {
-//             AST::App { fun, args } => {
-//                 let args = args.iter().fold(String::new(), |acc, arg| format!("{}{} ", acc, arg));
-//                 write!(f, "({:?} [ {}])", fun, args)
-//             }
-//             AST::Lit(l) => write!(f, "{:?}", l),
-//         }
-//     }
-// }
+trait DefaultASTDisplay {}
+
+impl<L, F> Display for AST<L, F>
+where
+    L: Clone + std::hash::Hash + std::fmt::Debug,
+    F: Language<L> + Copy + std::hash::Hash + std::fmt::Debug + DefaultASTDisplay,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AST::App { fun, args } => {
+                let args = args.iter().fold(String::new(), |acc, arg| format!("{}{} ", acc, arg));
+                write!(f, "({:?} [ {}])", fun, args)
+            }
+            AST::Lit(l) => write!(f, "{:?}", l),
+        }
+    }
+}
