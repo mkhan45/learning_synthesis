@@ -13,7 +13,15 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
 
     examples
         .into_iter()
-        .map(|(inp, out)| learn(inp, out, &mut HashMap::new(), &mut HashSet::new(), &mut bank))
+        .map(|(inp, out)| {
+            learn(
+                inp,
+                out,
+                &mut HashMap::new(),
+                &mut HashSet::new(),
+                &mut bank,
+            )
+        })
         .reduce(|a, b| Rc::new(a.intersect(b.as_ref())))
         .unwrap()
         .as_ref()
@@ -165,7 +173,27 @@ fn bottom_up(inp: &Lit, size: usize, cache: &mut HashMap<Lit, Rc<VSA>>, bank: &m
     // then we can add these to the cache for `learn`
 
     loop {
-        let adjs: Vec<AST> = Vec::new(); // TODO
+        let adjs: Vec<AST> = {
+            use crate::vsa::{Fun::*, Lit::*};
+
+            #[rustfmt::skip]
+            let strings = bank.iter().filter(|e| {
+                matches!(
+                    e,
+                    AST::Lit(Input | StringConst(_)) | AST::App { fun: Concat | Slice, .. }
+                )
+            });
+
+            #[rustfmt::skip]
+            let locs = bank.iter().filter(|e| {
+                matches!(
+                    e,
+                    AST::Lit(LocConst(_) | LocEnd) | AST::App { fun: Find | LocAdd | LocSub, .. }
+                )
+            });
+
+            todo!()
+        };
 
         for adj in adjs {
             if adj.size() > size {
