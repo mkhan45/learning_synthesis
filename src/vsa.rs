@@ -34,6 +34,19 @@ where
         VSA::Leaf(HashSet::new())
     }
 
+    pub fn unify(left: Rc<VSA<L, F>>, right: Rc<VSA<L, F>>) -> Self {
+        match (left.as_ref(), right.as_ref()) {
+            (VSA::Leaf(l), VSA::Leaf(r)) => VSA::Leaf(l.union(r).cloned().collect()),
+            (VSA::Union(u), _) | (_, VSA::Union(u)) => VSA::Union(
+                u.iter()
+                    .cloned()
+                    .chain(std::iter::once(right.clone()))
+                    .collect(),
+            ),
+            _ => VSA::Union(vec![left, right]),
+        }
+    }
+
     pub fn singleton(ast: AST<L, F>) -> Self {
         VSA::Leaf(std::iter::once(Rc::new(ast)).collect())
     }
@@ -226,7 +239,10 @@ impl Language<Lit> for Fun {
                     match arg {
                         Lit::StringConst(s) => buf.push_str(s),
                         // _ => panic!(),
-                        _ => { dbg!(arg); panic!() }
+                        _ => {
+                            dbg!(arg);
+                            panic!()
+                        }
                     }
                 }
                 Lit::StringConst(buf)
@@ -239,7 +255,9 @@ impl Language<Lit> for Fun {
                 _ => panic!(),
             },
             Fun::Slice => match args {
-                [Lit::StringConst(s), Lit::LocConst(start), Lit::LocConst(end)] if start <= end && end <= &s.len() => {
+                [Lit::StringConst(s), Lit::LocConst(start), Lit::LocConst(end)]
+                    if start <= end && end <= &s.len() =>
+                {
                     Lit::StringConst(s[*start..*end].to_owned())
                 }
                 [Lit::StringConst(s), Lit::LocConst(start), Lit::LocEnd] => {
@@ -253,7 +271,9 @@ impl Language<Lit> for Fun {
                 _ => panic!(),
             },
             Fun::LocSub => match args {
-                [Lit::LocConst(a), Lit::LocConst(b)] => Lit::LocConst(a - b),
+                [Lit::LocConst(a), Lit::LocConst(b)] => {
+                    Lit::LocConst(a.checked_sub(*b).unwrap_or(0))
+                }
                 _ => panic!(),
             },
         }
