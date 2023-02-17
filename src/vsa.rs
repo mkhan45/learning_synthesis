@@ -268,12 +268,14 @@ impl Language<Lit> for Fun {
             },
             Fun::LocAdd => match args {
                 [Lit::LocConst(a), Lit::LocConst(b)] => Lit::LocConst(a + b),
+                [Lit::LocEnd, _] | [_, Lit::LocEnd] => Lit::LocEnd,
                 _ => panic!(),
             },
             Fun::LocSub => match args {
                 [Lit::LocConst(a), Lit::LocConst(b)] => {
                     Lit::LocConst(a.checked_sub(*b).unwrap_or(0))
                 }
+                [Lit::LocEnd, _] | [_, Lit::LocEnd] => Lit::LocEnd,
                 _ => panic!(),
             },
         }

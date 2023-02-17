@@ -31,7 +31,8 @@ Goals:
 - [X] Figure out VSAs?
     - kind of but I dont have a good algorithm to use them
     - [X] Top down with inverse semantics and a VSA but it's not very good
-- [ ] Duet approach
+- [X] Duet approach
     - https://dl.acm.org/doi/10.1145/3434335
+    - probably lacking some things but the overall approach is the same
 - [ ] Middle Out?
   - https://dl.acm.org/doi/pdf/10.1145/3571226
