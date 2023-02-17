@@ -1,7 +1,8 @@
 use std::{collections::HashMap, collections::HashSet, fmt::Display, rc::Rc};
+use regex::Regex;
 
 pub trait Language<L> {
-    fn eval(&self, args: &[L]) -> L;
+    fn eval(&self, args: &[L], input: &L) -> L;
 }
 
 #[derive(Debug, Clone)]
@@ -200,6 +201,8 @@ pub enum Fun {
     Slice,
     LocAdd,
     LocSub,
+    Lowercase,
+    Uppercase,
 }
 
 pub trait InputLit {
@@ -231,7 +234,7 @@ where
 }
 
 impl Language<Lit> for Fun {
-    fn eval(&self, args: &[Lit]) -> Lit {
+    fn eval(&self, args: &[Lit], input: &Lit) -> Lit {
         match self {
             Fun::Concat => {
                 let mut buf = String::new();
@@ -248,23 +251,24 @@ impl Language<Lit> for Fun {
                 Lit::StringConst(buf)
             }
             Fun::Find => match args {
-                [Lit::StringConst(outer), Lit::StringConst(inner)] => outer
-                    .find(inner)
-                    .map(Lit::LocConst)
-                    .unwrap_or(Lit::LocEnd),
+                [Lit::StringConst(outer), Lit::StringConst(inner)] => {
+                    let re = Regex::new(inner).unwrap();
+                    re.find(outer)
+                        .map(|m| Lit::LocConst(m.start()))
+                        .unwrap_or(Lit::LocEnd)
+                }
                 _ => panic!(),
             },
-            Fun::Slice => match args {
-                [Lit::StringConst(s), Lit::LocConst(start), Lit::LocConst(end)]
+            Fun::Slice => match (args, input) {
+                ([Lit::LocConst(start), Lit::LocConst(end)], Lit::StringConst(s))
                     if start <= end && end <= &s.len() =>
                 {
                     Lit::StringConst(s[*start..*end].to_owned())
                 }
-                [Lit::StringConst(s), Lit::LocConst(start), Lit::LocEnd] => {
+                ([Lit::LocConst(start), Lit::LocEnd], Lit::StringConst(s)) if *start <= s.len() => {
                     Lit::StringConst(s[*start..].to_owned())
                 }
-                [Lit::StringConst(_), Lit::LocEnd, _] => Lit::StringConst("".to_owned()),
-                _ => Lit::StringConst(" ".to_string()),
+                _ => Lit::StringConst("".to_string()),
             },
             Fun::LocAdd => match args {
                 [Lit::LocConst(a), Lit::LocConst(b)] => Lit::LocConst(a + b),
@@ -276,6 +280,14 @@ impl Language<Lit> for Fun {
                     Lit::LocConst(a.checked_sub(*b).unwrap_or(0))
                 }
                 [Lit::LocEnd, _] | [_, Lit::LocEnd] => Lit::LocEnd,
+                _ => panic!(),
+            },
+            Fun::Lowercase => match args {
+                [Lit::StringConst(s)] => Lit::StringConst(s.to_lowercase()),
+                _ => panic!(),
+            },
+            Fun::Uppercase => match args {
+                [Lit::StringConst(s)] => Lit::StringConst(s.to_uppercase()),
                 _ => panic!(),
             },
         }
@@ -293,7 +305,7 @@ where
             AST::Lit(l) => l.clone(),
             AST::App { fun, args } => {
                 let evaled = args.iter().map(|ast| ast.eval(inp)).collect::<Vec<_>>();
-                fun.eval(&evaled)
+                fun.eval(&evaled, inp)
             }
         }
     }
@@ -347,6 +359,20 @@ impl Display for AST<Lit, Fun> {
                 let a = args[0].clone();
                 let b = args[1].clone();
                 write!(f, "({a} - {b})")
+            }
+            AST::App {
+                fun: Fun::Lowercase,
+                args,
+            } => {
+                let x = args[0].clone();
+                write!(f, "{x}.lower()")
+            }
+            AST::App {
+                fun: Fun::Uppercase,
+                args,
+            } => {
+                let x = args[0].clone();
+                write!(f, "{x}.upper()")
             }
             AST::Lit(Lit::StringConst(s)) => write!(f, "'{}'", s),
             AST::Lit(Lit::LocConst(n)) => write!(f, "{}", n),

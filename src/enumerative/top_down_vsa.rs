@@ -17,6 +17,8 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
         Lit::Input,
         Lit::StringConst(" ".to_string()),
         Lit::StringConst(".".to_string()),
+        Lit::StringConst("\\d".to_string()),
+        Lit::StringConst("\\b".to_string()),
         Lit::LocConst(0),
         Lit::LocConst(1),
     ] {
@@ -33,7 +35,7 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
     let inps = examples.iter().map(|(inp, _)| inp);
     bottom_up(inps.clone(), size, &mut all_cache, &mut bank);
 
-    while size < 6 {
+    while size < 4 {
         let res = examples
             .iter()
             .enumerate()
@@ -68,6 +70,9 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
     VSA::empty()
 }
 
+// TODO:
+// there's still an issue with cycles here
+// maybe still needs a queue
 fn learn(
     inp: &Lit,
     out: &Lit,
@@ -90,21 +95,21 @@ fn learn(
 
     let mut unifier = Vec::new();
     multi_match!((out, inp),
-    (Lit::StringConst(s), _) if s.as_str() == " " => {
-        unifier.push(VSA::singleton(AST::Lit(Lit::StringConst(" ".to_string()))))
-    },
-    (Lit::StringConst(s), _) if s.as_str() == "." => {
-        unifier.push(VSA::singleton(AST::Lit(Lit::StringConst(".".to_string()))))
-    },
-    (Lit::LocConst(0), _) => unifier.push(VSA::singleton(AST::Lit(Lit::LocConst(0)))),
-    (Lit::LocConst(1), _) => unifier.push(VSA::singleton(AST::Lit(Lit::LocConst(1)))),
-    (Lit::LocEnd, _) => unifier.push(VSA::singleton(AST::Lit(Lit::LocEnd))),
+    // (Lit::StringConst(s), _) if s.as_str() == " " => {
+    //     unifier.push(VSA::singleton(AST::Lit(Lit::StringConst(" ".to_string()))))
+    // },
+    // (Lit::StringConst(s), _) if s.as_str() == "." => {
+    //     unifier.push(VSA::singleton(AST::Lit(Lit::StringConst(".".to_string()))))
+    // },
+    // (Lit::LocConst(0), _) => unifier.push(VSA::singleton(AST::Lit(Lit::LocConst(0)))),
+    // (Lit::LocConst(1), _) => unifier.push(VSA::singleton(AST::Lit(Lit::LocConst(1)))),
+    // (Lit::LocEnd, _) => unifier.push(VSA::singleton(AST::Lit(Lit::LocEnd))),
 
     (Lit::StringConst(s), Lit::StringConst(inp_str)) if inp_str.contains(s) => {
         let start = inp_str.find(s).unwrap();
         let end = start + s.len();
-        let start_vsa = learn(inp, &Lit::LocConst(start), cache);
-        let end_vsa = learn(inp, &Lit::LocConst(end), cache);
+        let start_vsa = dbg!(learn(inp, &Lit::LocConst(dbg!(start)), cache));
+        let end_vsa = dbg!(learn(inp, &Lit::LocConst(dbg!(end)), cache));
         unifier.push(VSA::Join {
             op: Fun::Slice,
             children: vec![
@@ -139,15 +144,33 @@ fn learn(
 
     (Lit::LocConst(n), Lit::StringConst(s)) if *n == s.len() => {
         unifier.push(VSA::singleton(AST::Lit(Lit::LocEnd)));
+
+        if s.chars().last().is_some_and(|ch| ch.is_alphanumeric()) {
+            let wb = cache.get(&Lit::StringConst("\\b".to_string())).unwrap().clone();
+            unifier.push(VSA::Join {
+                op: Fun::Find,
+                children: vec![
+                    Rc::new(VSA::singleton(AST::Lit(Lit::Input))),
+                    wb,
+                ],
+            });
+        }
     },
     (Lit::LocConst(n), Lit::StringConst(s)) if s.find(' ') == Some(*n) => {
-        let lhs = AST::Lit(Lit::Input);
-        let rhs = AST::Lit(Lit::StringConst(" ".to_string()));
+        let lhs = Rc::new(VSA::singleton(AST::Lit(Lit::Input)));
+        let space = cache.get(&Lit::StringConst(" ".to_string())).unwrap().clone();
+        let wb = cache.get(&Lit::StringConst("\\b".to_string())).unwrap().clone();
         unifier.push(VSA::Join {
             op: Fun::Find,
-            children: vec![Rc::new(VSA::singleton(lhs)), Rc::new(VSA::singleton(rhs))],
+            children: vec![lhs.clone(), space],
         });
-    }
+
+        if s.chars().nth(*n).is_some_and(|ch| ch.is_alphanumeric()) {
+            unifier.push(VSA::Join {
+                op: Fun::Find,
+                children: vec![lhs, wb],
+            });
+        }}
     );
 
     let res = unifier
@@ -261,14 +284,19 @@ pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {
 pub fn examples() -> Vec<(Lit, Lit)> {
     vec![
         (
-            Lit::StringConst("Abc Def".to_string()),
-            // Lit::LocConst(3),
-            Lit::StringConst("Af".to_string()),
+            Lit::StringConst("I have 17 cookies".to_string()),
+            // Lit::LocConst(9),
+            Lit::StringConst("17".to_string()),
         ),
         (
-            Lit::StringConst("Hijasdf Lmnop".to_string()),
-            // Lit::LocConst(7),
-            Lit::StringConst("Hp".to_string()),
+            Lit::StringConst("Give me at least 3 cookies".to_string()),
+            // Lit::LocConst(18),
+            Lit::StringConst("3".to_string()),
+        ),
+        (
+            Lit::StringConst("This number is 489 and has 3 digits".to_string()),
+            // Lit::LocConst(18),
+            Lit::StringConst("489".to_string()),
         ),
     ]
 }

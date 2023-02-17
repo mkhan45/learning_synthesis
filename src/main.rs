@@ -33,5 +33,7 @@ fn main() {
     // dbg!(prog);
 
     let examples = enumerative::vsa_examples();
-    println!("{}", top_down_vsa(&examples));
+    let res = top_down_vsa(&examples);
+    println!("{}", res);
+    println!("{:?}", res.eval(&vsa::Lit::StringConst("A big number 3456".to_string())));
 }
