@@ -33,14 +33,11 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
     let inps = examples.iter().map(|(inp, _)| inp);
     bottom_up(inps.clone(), size, &mut all_cache, &mut bank);
 
-    while size < 5 {
+    while size < 6 {
         let res = examples
-            .into_iter()
+            .iter()
             .enumerate()
             .map(|(i, (inp, out))| {
-                // let mut cache: HashMap<Lit, Rc<VSA>> = all_cache.iter().map(|(outs, vsa)| {
-                //     (outs[i].clone(), vsa.clone())
-                // }).collect();
                 let mut cache: HashMap<Lit, Rc<VSA>> = HashMap::new();
                 for (outs, vsa) in all_cache.iter() {
                     if let Some(v) = cache.get_mut(&outs[i]) {
@@ -49,18 +46,8 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
                         cache.insert(outs[i].clone(), vsa.clone());
                     }
                 }
-                let mut visited = HashSet::new();
 
-                // TODO TODO: preprocess cache to map output -> union of all VSAs p s.t. p(inp) = out for
-                // the specific inp
-                //
-                // Might be better to have bottom up only work for one input at a time? Probably not
-                //
-                // Remove visited, LocAdd, LocSub -> wonder how rewrite rules would work
-                //
-                // The other TODOs are probably dumb
-                let res = learn(inp, out, &mut cache, &mut visited, &mut bank, 10);
-                res
+                learn(inp, out, &mut cache)
             })
             // .inspect(|vsa| {
             //     println!("VSA: {:?}", vsa);
@@ -81,39 +68,14 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
     VSA::empty()
 }
 
-// TODO:
-// the cache is stupid bc it prevents generalization
-// gotta bfs :/?
-//
-// what if the cache used observational equivalence
 fn learn(
     inp: &Lit,
     out: &Lit,
     cache: &mut HashMap<Lit, Rc<VSA>>,
-    visited: &mut HashSet<Lit>,
-    bank: &mut Vec<AST>,
-    size: usize,
 ) -> Rc<VSA> {
-    if size == 0 {
-        return Rc::new(VSA::empty());
-    }
-
     if let Some(res) = cache.get(out) {
         return res.clone();
     }
-    if visited.contains(out) {
-        return Rc::new(VSA::empty());
-    }
-    // visited.insert(out.clone());
-    // TODO: does the algorithm just not work?
-    // make worklist a queue of (f, l), where l is the output to learn
-    // and f(l) adds it to a VSA?
-    //
-    // might have to use holes like the normal top down
-    //
-    // TODO: I should probably unionize all of the cases
-    // so that if multiple match we dont lose any options
-    // probably use a multi match macro
 
     macro_rules! multi_match {
         ($v:expr, $($p:pat $(if $guard:expr)? => $res:expr),*) => {
@@ -141,9 +103,8 @@ fn learn(
     (Lit::StringConst(s), Lit::StringConst(inp_str)) if inp_str.contains(s) => {
         let start = inp_str.find(s).unwrap();
         let end = start + s.len();
-        let start_vsa = learn(inp, &Lit::LocConst(start), cache, visited, bank, size - 1);
-        let end_vsa = learn(inp, &Lit::LocConst(end), cache, visited, bank, size - 1);
-        // dbg!(inp_str, s, start, end, inp_str.len(), start_vsa.pick_one(), end_vsa.pick_one());
+        let start_vsa = learn(inp, &Lit::LocConst(start), cache);
+        let end_vsa = learn(inp, &Lit::LocConst(end), cache);
         unifier.push(VSA::Join {
             op: Fun::Slice,
             children: vec![
@@ -162,17 +123,11 @@ fn learn(
                         inp,
                         &Lit::StringConst(s[0..i].to_string()),
                         cache,
-                        visited,
-                        bank,
-                        size - 1,
                     ),
                     learn(
                         inp,
                         &Lit::StringConst(s[i..].to_string()),
                         cache,
-                        visited,
-                        bank,
-                        size - 1,
                     ),
                 ],
             })
@@ -183,10 +138,8 @@ fn learn(
     },
 
     (Lit::LocConst(n), Lit::StringConst(s)) if *n == s.len() => {
-        // println!("learning LocEnd");
         unifier.push(VSA::singleton(AST::Lit(Lit::LocEnd)));
     },
-    // TODO: fix bad inverse semantics for find, when there are multiple occurences
     (Lit::LocConst(n), Lit::StringConst(s)) if s.find(' ') == Some(*n) => {
         let lhs = AST::Lit(Lit::Input);
         let rhs = AST::Lit(Lit::StringConst(" ".to_string()));
@@ -195,51 +148,6 @@ fn learn(
             children: vec![Rc::new(VSA::singleton(lhs)), Rc::new(VSA::singleton(rhs))],
         });
     }
-    // Lit::StringConst(s) if s.chars().nth(*n - 1).is_some_and(|x| x.is_digit(10)) => {
-    //     let lhs = AST::Lit(Lit::Input);
-    //     let rhs = AST::Lit(Lit::StringConst("\\d".to_string()));
-    //     VSA::Join {
-    //         op: Fun::Find,
-    //         children: vec![Rc::new(VSA::singleton(lhs)), Rc::new(VSA::singleton(rhs))],
-    //     }
-    // }
-    // Lit::StringConst(s) => {
-    //     dbg!();
-    //     // has to be a find
-    //     // assume lhs is always gonna be the input
-    //     let lhs = AST::Lit(Lit::Input);
-    //     let rhs = learn(
-    //         inp,
-    //         &Lit::StringConst(s.chars().nth(*n).unwrap().to_string()),
-    //         cache,
-    //         visited,
-    //     );
-    //     VSA::Join {
-    //         op: Fun::Find,
-    //         children: vec![Rc::new(VSA::singleton(lhs)), rhs],
-    //     }
-    // }
-    // (Lit::LocConst(n), Lit::StringConst(_)) if *n > 0 => unifier.push(VSA::Union(
-    //         [
-    //         Rc::new(VSA::Join {
-    //             op: Fun::LocAdd,
-    //             children: vec![
-    //                 learn(inp, &Lit::LocConst(n - 1), cache, visited, bank, size - 1),
-    //                 learn(inp, &Lit::LocConst(1), cache, visited, bank, size - 1),
-    //             ],
-    //         }),
-    //         Rc::new(VSA::Join {
-    //             op: Fun::LocSub,
-    //             children: vec![
-    //                 learn(inp, &Lit::LocConst(n + 1), cache, visited, bank, size - 1),
-    //                 learn(inp, &Lit::LocConst(1), cache, visited, bank, size - 1),
-    //             ],
-    //         }),
-    //         ]
-    //         .into_iter()
-    //         .collect(),
-    // ))
-
     );
 
     let res = unifier
@@ -289,7 +197,6 @@ fn bottom_up<'a>(
                     AST::Lit(LocConst(_) | LocEnd) | AST::App { fun: Find | LocAdd | LocSub, .. }
                 )
             });
-            // dbg!(locs.clone().collect::<Vec<_>>());
 
             let loc_adds = iproduct!(locs.clone(), locs.clone()).map(|(lhs, rhs)| AST::App {
                 fun: Fun::LocAdd,
@@ -316,12 +223,11 @@ fn bottom_up<'a>(
                 args: vec![start.clone(), end.clone()],
             });
 
-            // loc_adds
-            //     .chain(loc_subs)
-            //     .chain(concats)
-            //     .chain(slices)
-            //     .chain(finds)
-            concats.chain(slices).chain(finds)
+            loc_adds
+                .chain(loc_subs)
+                .chain(concats)
+                .chain(slices)
+                .chain(finds)
         }
         .collect::<Vec<_>>();
 
@@ -329,13 +235,13 @@ fn bottom_up<'a>(
         for adj in adjs {
             let outs = inps.clone().map(|inp| adj.eval(inp)).collect::<Vec<_>>();
 
-            if !cache.contains_key(&outs) {
+            use std::collections::hash_map::Entry;
+            if let Entry::Vacant(e) = cache.entry(outs.clone()) {
                 if adj.size() <= size {
-                    // println!("{}", adj);
                     some_small = true;
                 }
 
-                cache.insert(outs, Rc::new(VSA::singleton(adj.clone())));
+                e.insert(Rc::new(VSA::singleton(adj.clone())));
                 bank.push(adj);
             }
         }
@@ -357,12 +263,12 @@ pub fn examples() -> Vec<(Lit, Lit)> {
         (
             Lit::StringConst("Abc Def".to_string()),
             // Lit::LocConst(3),
-            Lit::StringConst("A.D.".to_string()),
+            Lit::StringConst("Af".to_string()),
         ),
         (
             Lit::StringConst("Hijasdf Lmnop".to_string()),
             // Lit::LocConst(7),
-            Lit::StringConst("H.L.".to_string()),
+            Lit::StringConst("Hp".to_string()),
         ),
     ]
 }

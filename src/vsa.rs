@@ -250,7 +250,7 @@ impl Language<Lit> for Fun {
             Fun::Find => match args {
                 [Lit::StringConst(outer), Lit::StringConst(inner)] => outer
                     .find(inner)
-                    .map(|l| Lit::LocConst(l))
+                    .map(Lit::LocConst)
                     .unwrap_or(Lit::LocEnd),
                 _ => panic!(),
             },
