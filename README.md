@@ -34,5 +34,6 @@ Goals:
 - [X] Duet approach
     - https://dl.acm.org/doi/10.1145/3434335
     - probably lacking some things but the overall approach is the same
+    - src/main/top_down_vsa.rs
 - [ ] Middle Out?
   - https://dl.acm.org/doi/pdf/10.1145/3571226

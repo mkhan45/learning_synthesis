@@ -10,6 +10,12 @@ use crate::vsa::{Fun, Lit};
 type VSA = crate::vsa::VSA<Lit, Fun>;
 type AST = crate::vsa::AST<Lit, Fun>;
 
+// TODO:
+// - Improve bank so I can more precisely construct programs
+// of a specific size
+// - VSA Ranking algorithm
+// - Fix inverse semantics for regexes?
+
 fn top_down(examples: &[(Lit, Lit)]) -> VSA {
     let mut bank = Vec::new();
     let mut all_cache = HashMap::new();

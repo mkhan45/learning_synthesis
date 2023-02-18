@@ -136,6 +136,8 @@ where
     }
 
     fn ranking(&self, cmp: impl Fn(&VSA<L, F>) -> usize) -> VSA<L, F> {
+        // match self {
+        // }
         todo!()
     }
 
