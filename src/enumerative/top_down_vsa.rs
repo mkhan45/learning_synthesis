@@ -39,9 +39,9 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
 
     let mut size = 3;
     let inps = examples.iter().map(|(inp, _)| inp);
-    bottom_up(inps.clone(), size, &mut all_cache, &mut bank);
 
-    while size < 4 {
+    while size <= 8 {
+        bottom_up(inps.clone(), size, &mut all_cache, &mut bank);
         let res = examples
             .iter()
             .enumerate()
@@ -69,7 +69,6 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
             return res;
         } else {
             size += 1;
-            bottom_up(inps.clone(), size, &mut all_cache, &mut bank);
         }
     }
 
@@ -84,6 +83,7 @@ fn learn(
     out: &Lit,
     cache: &mut HashMap<Lit, Rc<VSA>>,
 ) -> Rc<VSA> {
+    dbg!();
     if let Some(res) = cache.get(out) {
         return res.clone();
     }
@@ -208,6 +208,7 @@ fn bottom_up<'a>(
     //
     // TODO: probably remove LocAdd and LocSub in favor for LocInc and LocDec or something
     'outer: loop {
+        let mut some_small = false;
         let adjs: Vec<AST> = {
             use crate::vsa::{Fun::*, Lit::*};
 
@@ -258,22 +259,23 @@ fn bottom_up<'a>(
                 .chain(slices)
                 .chain(finds)
         }
-        .collect::<Vec<_>>();
-
-        let mut some_small = false;
-        for adj in adjs {
+        .filter(|adj| {
             let outs = inps.clone().map(|inp| adj.eval(inp)).collect::<Vec<_>>();
-
             use std::collections::hash_map::Entry;
+
             if let Entry::Vacant(e) = cache.entry(outs.clone()) {
+                e.insert(Rc::new(VSA::singleton(adj.clone())));
                 if adj.size() <= size {
                     some_small = true;
                 }
-
-                e.insert(Rc::new(VSA::singleton(adj.clone())));
-                bank.push(adj);
+                adj.size() <= size
+            } else {
+                false
             }
-        }
+        })
+        .collect::<Vec<_>>();
+
+        bank.extend(adjs);
 
         if !some_small {
             break 'outer;
@@ -291,18 +293,18 @@ pub fn examples() -> Vec<(Lit, Lit)> {
     vec![
         (
             Lit::StringConst("I have 17 cookies".to_string()),
-            // Lit::LocConst(9),
-            Lit::StringConst("17".to_string()),
+            Lit::LocConst(9),
+            // Lit::StringConst("17".to_string()),
         ),
         (
             Lit::StringConst("Give me at least 3 cookies".to_string()),
-            // Lit::LocConst(18),
-            Lit::StringConst("3".to_string()),
+            Lit::LocConst(18),
+            // Lit::StringConst("3".to_string()),
         ),
         (
-            Lit::StringConst("This number is 489 and has 3 digits".to_string()),
-            // Lit::LocConst(18),
-            Lit::StringConst("489".to_string()),
+            Lit::StringConst("This number is 489".to_string()),
+            Lit::LocConst(18),
+            // Lit::StringConst("489".to_string()),
         ),
     ]
 }
