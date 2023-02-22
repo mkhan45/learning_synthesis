@@ -40,7 +40,7 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
     let mut size = 3;
     let inps = examples.iter().map(|(inp, _)| inp);
 
-    while size <= 8 {
+    while size <= 10 {
         bottom_up(inps.clone(), size, &mut all_cache, &mut bank);
         let res = examples
             .iter()
@@ -65,6 +65,7 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
             .as_ref()
             .clone();
 
+        // if res.pick_one().is_some() {
         if res.pick_one().is_some() {
             return res;
         } else {
@@ -78,12 +79,7 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
 // TODO:
 // there's still an issue with cycles here
 // maybe still needs a queue
-fn learn(
-    inp: &Lit,
-    out: &Lit,
-    cache: &mut HashMap<Lit, Rc<VSA>>,
-) -> Rc<VSA> {
-    dbg!();
+fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
     if let Some(res) = cache.get(out) {
         return res.clone();
     }
@@ -114,8 +110,8 @@ fn learn(
     (Lit::StringConst(s), Lit::StringConst(inp_str)) if inp_str.contains(s) => {
         let start = inp_str.find(s).unwrap();
         let end = start + s.len();
-        let start_vsa = dbg!(learn(inp, &Lit::LocConst(dbg!(start)), cache));
-        let end_vsa = dbg!(learn(inp, &Lit::LocConst(dbg!(end)), cache));
+        let start_vsa = learn(inp, &Lit::LocConst(start), cache);
+        let end_vsa = learn(inp, &Lit::LocConst(end), cache);
         unifier.push(VSA::Join {
             op: Fun::Slice,
             children: vec![
@@ -263,11 +259,13 @@ fn bottom_up<'a>(
             let outs = inps.clone().map(|inp| adj.eval(inp)).collect::<Vec<_>>();
             use std::collections::hash_map::Entry;
 
+            // dbg!(adj.size(), size);
+            if adj.size() <= size {
+                some_small = true;
+            }
+
             if let Entry::Vacant(e) = cache.entry(outs.clone()) {
                 e.insert(Rc::new(VSA::singleton(adj.clone())));
-                if adj.size() <= size {
-                    some_small = true;
-                }
                 adj.size() <= size
             } else {
                 false
@@ -275,9 +273,10 @@ fn bottom_up<'a>(
         })
         .collect::<Vec<_>>();
 
+        let l = adjs.len();
         bank.extend(adjs);
 
-        if !some_small {
+        if l == 0 || !some_small {
             break 'outer;
         }
     }
@@ -286,7 +285,7 @@ fn bottom_up<'a>(
 }
 
 pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {
-    top_down(examples).pick_one().unwrap()
+    top_down(examples).pick_best(|ast| ast.cost(Fun::cost)).unwrap()
 }
 
 pub fn examples() -> Vec<(Lit, Lit)> {

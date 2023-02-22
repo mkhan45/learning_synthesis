@@ -32,8 +32,66 @@ fn main() {
     // let prog = enumerative::bottom_up(&examples, 5000);
     // dbg!(prog);
 
-    let examples = enumerative::vsa_examples();
-    let res = top_down_vsa(&examples);
-    println!("{}", res);
-    println!("{:?}", res.eval(&vsa::Lit::StringConst("A big number 3456".to_string())));
+    use crate::vsa::Lit;
+    let res = top_down_vsa(&vec![
+        (
+            Lit::StringConst("I have 17 cookies".to_string()),
+            Lit::LocConst(7),
+            // Lit::StringConst("17".to_string()),
+        ),
+        (
+            Lit::StringConst("Give me at least 3 cookies".to_string()),
+            Lit::LocConst(17),
+            // Lit::StringConst("3".to_string()),
+        ),
+        (
+            Lit::StringConst("This number is 489".to_string()),
+            Lit::LocConst(15),
+            // Lit::StringConst("489".to_string()),
+        ),
+    ]);
+    println!("{}, size = {}", res, res.size());
+
+    let res = top_down_vsa(&vec![
+        (
+            Lit::StringConst("I have 17 cookies".to_string()),
+            Lit::LocConst(9),
+            // Lit::StringConst("17".to_string()),
+        ),
+        (
+            Lit::StringConst("Give me at least 3 cookies".to_string()),
+            Lit::LocConst(18),
+            // Lit::StringConst("3".to_string()),
+        ),
+        (
+            Lit::StringConst("This number is 489".to_string()),
+            Lit::LocConst(18),
+            // Lit::StringConst("489".to_string()),
+        ),
+    ]);
+    println!("{}, size = {}", res, res.size());
+    println!(
+        "{:?}",
+        res.eval(&vsa::Lit::StringConst("A big number 3456".to_string()))
+    );
+
+    let res = top_down_vsa(&vec![
+        (
+            Lit::StringConst("I have 17 cookies".to_string()),
+            Lit::StringConst("17".to_string()),
+        ),
+        (
+            Lit::StringConst("Give me at least 3 cookies".to_string()),
+            Lit::StringConst("3".to_string()),
+        ),
+        (
+            Lit::StringConst("This number is 489 ".to_string()),
+            Lit::StringConst("489".to_string()),
+        ),
+    ]);
+    println!("{}, size = {}", res, res.size());
+    println!(
+        "{:?}",
+        res.eval(&vsa::Lit::StringConst("A big number 3456".to_string()))
+    );
 }

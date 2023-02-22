@@ -1,5 +1,6 @@
-use std::{collections::HashMap, collections::HashSet, fmt::Display, rc::Rc};
+use itertools::Itertools;
 use regex::Regex;
+use std::{collections::HashMap, collections::HashSet, fmt::Display, rc::Rc};
 
 pub trait Language<L> {
     fn eval(&self, args: &[L], input: &L) -> L;
@@ -135,10 +136,27 @@ where
             .collect()
     }
 
-    fn ranking(&self, cmp: impl Fn(&VSA<L, F>) -> usize) -> VSA<L, F> {
-        // match self {
-        // }
-        todo!()
+    pub fn pick_best(&self, rank: impl Fn(&AST<L, F>) -> usize + Copy) -> Option<AST<L, F>> {
+        match self {
+            VSA::Leaf(s) => s
+                .iter()
+                .sorted_by_key(|ast| rank(ast.clone().as_ref()))
+                .next()
+                .map(|x| x.as_ref())
+                .cloned(),
+            VSA::Union(s) => s.iter().filter_map(|vsa| vsa.pick_best(rank)).min_by_key(rank),
+            VSA::Join { op, children } => {
+                let mut args = children.iter().map(|vsa| vsa.pick_best(rank));
+                if args.any(|picked| picked.is_none()) {
+                    None
+                } else {
+                    Some(AST::App {
+                        fun: *op,
+                        args: children.iter().map(|vsa| vsa.pick_best(rank).unwrap()).collect(),
+                    })
+                }
+            }
+        }
     }
 
     pub fn pick_one(&self) -> Option<AST<L, F>> {
@@ -205,6 +223,15 @@ pub enum Fun {
     LocSub,
     Lowercase,
     Uppercase,
+}
+
+impl Fun {
+    pub fn cost(&self) -> usize {
+        match self {
+            Fun::Concat => 2,
+            _ => 1,
+        }
+    }
 }
 
 pub trait InputLit {
@@ -316,6 +343,13 @@ where
         match self {
             AST::Lit(_) => 1,
             AST::App { args, .. } => 1 + args.iter().map(AST::size).sum::<usize>(),
+        }
+    }
+
+    pub fn cost(&self, fn_ranker: impl Fn(&F) -> usize) -> usize {
+        match self {
+            AST::Lit(_) => 1,
+            AST::App { fun, args } => fn_ranker(fun) + args.iter().map(AST::size).sum::<usize>(),
         }
     }
 }
