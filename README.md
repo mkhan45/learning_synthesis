@@ -1,25 +1,27 @@
 # learning_synthesis
 
 ```
-    let examples = vec![
+    let res = top_down_vsa(&vec![
         (
-            StringExpr::Lit("First Last".to_owned()),
-            StringExpr::Lit("F L".to_owned()),
+            Lit::StringConst("I have 17 cookies".to_string()),
+            Lit::StringConst("17".to_string()),
         ),
         (
-            StringExpr::Lit("Abc Def".to_owned()),
-            StringExpr::Lit("A D".to_owned()),
+            Lit::StringConst("Give me at least 3 cookies".to_string()),
+            Lit::StringConst("3".to_string()),
         ),
-    ];
-    let prog = enumerative::search::bottom_up(&examples);
-    dbg!(prog);
-```
-
-```
-[src/main.rs:18] prog = Some(
-    (((X[0..1]) <> (X[(X.find(' '))..-1]))[0..3]),
-)
-```
+        (
+            Lit::StringConst("This number is 489".to_string()),
+            Lit::StringConst("489".to_string()),
+        ),
+    ]);
+    println!("{}, size = {}", res, res.size()); // X[X.find('\d')..(' ' <> X).find(('\d' <> '\b'))]
+    assert_eq!(
+        res.eval(&Lit::StringConst(
+            "A string with the number 54234564 in the middle".to_string()
+        )),
+        Lit::StringConst("54234564".to_string())
+    );
 
 Roughly following these to learn synthesis
 - <https://github.com/nadia-polikarpova/cse291-program-synthesis>
