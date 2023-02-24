@@ -108,10 +108,9 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
     // (Lit::LocConst(1), _) => unifier.push(VSA::singleton(AST::Lit(Lit::LocConst(1)))),
     // (Lit::LocEnd, _) => unifier.push(VSA::singleton(AST::Lit(Lit::LocEnd))),
 
-    (Lit::StringConst(s), Lit::StringConst(inp_str)) if dbg!(dbg!(inp_str).contains(dbg!(s))) => {
+    (Lit::StringConst(s), Lit::StringConst(inp_str)) if inp_str.contains(s) => {
         let start = inp_str.find(s).unwrap();
         let end = start + s.len();
-        dbg!(start, end, s);
         let start_vsa = learn(inp, &Lit::LocConst(start), cache);
         let end_vsa = learn(inp, &Lit::LocConst(end), cache);
         unifier.push(VSA::Join {
@@ -141,7 +140,7 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
                 ],
             })
         .map(Rc::new)
-            .collect();
+        .collect();
 
         unifier.push(VSA::Union(set));
     },
@@ -287,7 +286,9 @@ fn bottom_up<'a>(
 }
 
 pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {
-    top_down(examples).pick_best(|ast| ast.cost(Fun::cost)).unwrap()
+    top_down(examples)
+        .pick_best(|ast| ast.cost(Fun::cost))
+        .unwrap()
 }
 
 pub fn examples() -> Vec<(Lit, Lit)> {

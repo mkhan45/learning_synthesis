@@ -39,10 +39,16 @@ where
     pub fn unify(left: Rc<VSA<L, F>>, right: Rc<VSA<L, F>>) -> Self {
         match (left.as_ref(), right.as_ref()) {
             (VSA::Leaf(l), VSA::Leaf(r)) => VSA::Leaf(l.union(r).cloned().collect()),
-            (VSA::Union(u), _) | (_, VSA::Union(u)) => VSA::Union(
+            (VSA::Union(u), _) => VSA::Union(
                 u.iter()
                     .cloned()
                     .chain(std::iter::once(right.clone()))
+                    .collect(),
+            ),
+            (_, VSA::Union(u)) => VSA::Union(
+                u.iter()
+                    .cloned()
+                    .chain(std::iter::once(left.clone()))
                     .collect(),
             ),
             _ => VSA::Union(vec![left, right]),
@@ -144,7 +150,10 @@ where
                 .next()
                 .map(|x| x.as_ref())
                 .cloned(),
-            VSA::Union(s) => s.iter().filter_map(|vsa| vsa.pick_best(rank)).min_by_key(rank),
+            VSA::Union(s) => s
+                .iter()
+                .filter_map(|vsa| vsa.pick_best(rank))
+                .min_by_key(rank),
             VSA::Join { op, children } => {
                 let mut args = children.iter().map(|vsa| vsa.pick_best(rank));
                 if args.any(|picked| picked.is_none()) {
@@ -152,7 +161,10 @@ where
                 } else {
                     Some(AST::App {
                         fun: *op,
-                        args: children.iter().map(|vsa| vsa.pick_best(rank).unwrap()).collect(),
+                        args: children
+                            .iter()
+                            .map(|vsa| vsa.pick_best(rank).unwrap())
+                            .collect(),
                     })
                 }
             }

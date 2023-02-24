@@ -36,48 +36,6 @@ fn main() {
     let res = top_down_vsa(&vec![
         (
             Lit::StringConst("I have 17 cookies".to_string()),
-            Lit::LocConst(7),
-            // Lit::StringConst("17".to_string()),
-        ),
-        (
-            Lit::StringConst("Give me at least 3 cookies".to_string()),
-            Lit::LocConst(17),
-            // Lit::StringConst("3".to_string()),
-        ),
-        (
-            Lit::StringConst("This number is 489".to_string()),
-            Lit::LocConst(15),
-            // Lit::StringConst("489".to_string()),
-        ),
-    ]);
-    println!("{}, size = {}", res, res.size());
-
-    let res = top_down_vsa(&vec![
-        (
-            Lit::StringConst("I have 17 cookies".to_string()),
-            Lit::LocConst(9),
-            // Lit::StringConst("17".to_string()),
-        ),
-        (
-            Lit::StringConst("Give me at least 3 cookies".to_string()),
-            Lit::LocConst(18),
-            // Lit::StringConst("3".to_string()),
-        ),
-        (
-            Lit::StringConst("This number is 489".to_string()),
-            Lit::LocConst(18),
-            // Lit::StringConst("489".to_string()),
-        ),
-    ]);
-    println!("{}, size = {}", res, res.size());
-    println!(
-        "{:?}",
-        res.eval(&vsa::Lit::StringConst("A big number 3456".to_string()))
-    );
-
-    let res = top_down_vsa(&vec![
-        (
-            Lit::StringConst("I have 17 cookies".to_string()),
             Lit::StringConst("17".to_string()),
         ),
         (
@@ -90,8 +48,30 @@ fn main() {
         ),
     ]);
     println!("{}, size = {}", res, res.size());
-    // println!(
-    //     "{:?}",
-    //     res.eval(&vsa::Lit::StringConst("A big number 3456".to_string()))
-    // );
+    assert_eq!(
+        res.eval(&Lit::StringConst(
+            "A string with the number 54234564 in the middle".to_string()
+        )),
+        Lit::StringConst("54234564".to_string())
+    );
+
+    let res = top_down_vsa(&vec![
+        (
+            Lit::StringConst("First Last".to_string()),
+            Lit::StringConst("F.L.".to_string()),
+        ),
+        (
+            Lit::StringConst("Abc Defgh".to_string()),
+            Lit::StringConst("A.D.".to_string()),
+        ),
+        (
+            Lit::StringConst("Someone Name".to_string()),
+            Lit::StringConst("S.N.".to_string()),
+        ),
+    ]);
+    println!("{}, size = {}", res, res.size());
+    assert_eq!(
+        res.eval(&Lit::StringConst("Another Name".to_string())),
+        Lit::StringConst("A.N.".to_string())
+    );
 }
