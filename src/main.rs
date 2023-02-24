@@ -85,13 +85,13 @@ fn main() {
             Lit::StringConst("3".to_string()),
         ),
         (
-            Lit::StringConst("This number is 489 ".to_string()),
+            Lit::StringConst("This number is 489".to_string()),
             Lit::StringConst("489".to_string()),
         ),
     ]);
     println!("{}, size = {}", res, res.size());
-    println!(
-        "{:?}",
-        res.eval(&vsa::Lit::StringConst("A big number 3456".to_string()))
-    );
+    // println!(
+    //     "{:?}",
+    //     res.eval(&vsa::Lit::StringConst("A big number 3456".to_string()))
+    // );
 }

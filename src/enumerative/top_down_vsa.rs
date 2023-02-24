@@ -27,6 +27,7 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
         Lit::StringConst("\\b".to_string()),
         Lit::LocConst(0),
         Lit::LocConst(1),
+        Lit::LocEnd,
     ] {
         bank.push(AST::Lit(prim.clone()));
         all_cache.insert(
@@ -65,7 +66,6 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
             .as_ref()
             .clone();
 
-        // if res.pick_one().is_some() {
         if res.pick_one().is_some() {
             return res;
         } else {
@@ -80,8 +80,10 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
 // there's still an issue with cycles here
 // maybe still needs a queue
 fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
+    let mut unifier = Vec::new();
     if let Some(res) = cache.get(out) {
-        return res.clone();
+        unifier.push(res.as_ref().clone());
+        // return res.clone();
     }
 
     macro_rules! multi_match {
@@ -95,7 +97,6 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
         };
     }
 
-    let mut unifier = Vec::new();
     multi_match!((out, inp),
     // (Lit::StringConst(s), _) if s.as_str() == " " => {
     //     unifier.push(VSA::singleton(AST::Lit(Lit::StringConst(" ".to_string()))))
@@ -107,9 +108,10 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
     // (Lit::LocConst(1), _) => unifier.push(VSA::singleton(AST::Lit(Lit::LocConst(1)))),
     // (Lit::LocEnd, _) => unifier.push(VSA::singleton(AST::Lit(Lit::LocEnd))),
 
-    (Lit::StringConst(s), Lit::StringConst(inp_str)) if inp_str.contains(s) => {
+    (Lit::StringConst(s), Lit::StringConst(inp_str)) if dbg!(dbg!(inp_str).contains(dbg!(s))) => {
         let start = inp_str.find(s).unwrap();
         let end = start + s.len();
+        dbg!(start, end, s);
         let start_vsa = learn(inp, &Lit::LocConst(start), cache);
         let end_vsa = learn(inp, &Lit::LocConst(end), cache);
         unifier.push(VSA::Join {
