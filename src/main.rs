@@ -6,6 +6,7 @@ use enumerative::top_down_vsa;
 
 use crate::lang::StringExpr;
 
+pub mod bank;
 pub mod egg_lang;
 pub mod enumerative;
 pub mod lang;
@@ -31,8 +32,23 @@ fn main() {
     // ];
     // let prog = enumerative::bottom_up(&examples, 5000);
     // dbg!(prog);
-
     use crate::vsa::Lit;
+    let res = top_down_vsa(&vec![
+        (
+            Lit::StringConst("I have 17 cookies second 34 number".to_string()),
+            Lit::StringConst("34".to_string()),
+        ),
+        (
+            Lit::StringConst("Give me at least 3 cookies another 2".to_string()),
+            Lit::StringConst("2".to_string()),
+        ),
+        (
+            Lit::StringConst("This number is 489 57".to_string()),
+            Lit::StringConst("57".to_string()),
+        ),
+    ]);
+    println!("{}, size = {}", res, res.size());
+
     let res = top_down_vsa(&vec![
         (
             Lit::StringConst("I have 17 cookies".to_string()),

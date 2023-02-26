@@ -38,7 +38,7 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
         );
     }
 
-    let mut size = 3;
+    let mut size = 5;
     let inps = examples.iter().map(|(inp, _)| inp);
 
     while size <= 10 {
@@ -265,6 +265,7 @@ fn bottom_up<'a>(
                 some_small = true;
             }
 
+            dbg!(adj.size(), size, bank.len());
             if let Entry::Vacant(e) = cache.entry(outs.clone()) {
                 e.insert(Rc::new(VSA::singleton(adj.clone())));
                 adj.size() <= size
