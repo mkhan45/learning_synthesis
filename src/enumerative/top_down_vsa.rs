@@ -5,7 +5,7 @@ use std::{
 
 use itertools::iproduct;
 
-use crate::vsa::{Fun, Lit};
+use crate::{vsa::{Fun, Lit}, bank::Bank};
 
 type VSA = crate::vsa::VSA<Lit, Fun>;
 type AST = crate::vsa::AST<Lit, Fun>;
@@ -17,7 +17,7 @@ type AST = crate::vsa::AST<Lit, Fun>;
 // - Fix inverse semantics for regexes?
 
 fn top_down(examples: &[(Lit, Lit)]) -> VSA {
-    let mut bank = Vec::new();
+    let mut bank = Bank::new();
     let mut all_cache = HashMap::new();
     for prim in [
         Lit::Input,
@@ -29,7 +29,7 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
         Lit::LocConst(1),
         Lit::LocEnd,
     ] {
-        bank.push(AST::Lit(prim.clone()));
+        bank.size_mut(1).push(AST::Lit(prim.clone()));
         all_cache.insert(
             std::iter::repeat(prim.clone())
                 .take(examples.len())
@@ -194,7 +194,7 @@ fn bottom_up<'a>(
     inps: impl Iterator<Item = &'a Lit> + Clone,
     size: usize,
     cache: &mut HashMap<Vec<Lit>, Rc<VSA>>,
-    bank: &mut Vec<AST>,
+    bank: &mut Bank<AST>,
 ) {
     dbg!(size);
     // builds a VSA for a given I/O example
@@ -210,51 +210,56 @@ fn bottom_up<'a>(
             use crate::vsa::{Fun::*, Lit::*};
 
             #[rustfmt::skip]
-            let strings = bank.iter().filter(|e| {
-                matches!(
-                    e,
-                    AST::Lit(Input | StringConst(_)) | AST::App { fun: Concat | Slice, .. }
-                )
-            });
+            let strings_of_size = |n: usize| {
+                bank.size(n).iter().filter(|e| {
+                    matches!(
+                        e,
+                        AST::Lit(Input | StringConst(_)) | AST::App { fun: Concat | Slice, .. }
+                    )
+                })
+            };
 
             #[rustfmt::skip]
-            let locs = bank.iter().filter(|e| {
-                matches!(
-                    e,
-                    AST::Lit(LocConst(_) | LocEnd) | AST::App { fun: Find | LocAdd | LocSub, .. }
-                )
-            });
+            let locs_of_size = |n: usize| {
+                bank.size(n).iter().filter(|e| {
+                    matches!(
+                        e,
+                        AST::Lit(LocConst(_) | LocEnd) | AST::App { fun: Find | LocAdd | LocSub, .. }
+                    )
+                })
+            };
+ 
+            todo!();
+            // let loc_adds = iproduct!(locs.clone(), locs.clone()).map(|(lhs, rhs)| AST::App {
+            //     fun: Fun::LocAdd,
+            //     args: vec![lhs.clone(), rhs.clone()],
+            // });
 
-            let loc_adds = iproduct!(locs.clone(), locs.clone()).map(|(lhs, rhs)| AST::App {
-                fun: Fun::LocAdd,
-                args: vec![lhs.clone(), rhs.clone()],
-            });
+            // let loc_subs = iproduct!(locs.clone(), locs.clone()).map(|(lhs, rhs)| AST::App {
+            //     fun: Fun::LocSub,
+            //     args: vec![lhs.clone(), rhs.clone()],
+            // });
 
-            let loc_subs = iproduct!(locs.clone(), locs.clone()).map(|(lhs, rhs)| AST::App {
-                fun: Fun::LocSub,
-                args: vec![lhs.clone(), rhs.clone()],
-            });
+            // let concats = iproduct!(strings.clone(), strings.clone()).map(|(lhs, rhs)| AST::App {
+            //     fun: Fun::Concat,
+            //     args: vec![lhs.clone(), rhs.clone()],
+            // });
 
-            let concats = iproduct!(strings.clone(), strings.clone()).map(|(lhs, rhs)| AST::App {
-                fun: Fun::Concat,
-                args: vec![lhs.clone(), rhs.clone()],
-            });
+            // let finds = iproduct!(strings.clone(), strings.clone()).map(|(lhs, rhs)| AST::App {
+            //     fun: Fun::Find,
+            //     args: vec![lhs.clone(), rhs.clone()],
+            // });
 
-            let finds = iproduct!(strings.clone(), strings.clone()).map(|(lhs, rhs)| AST::App {
-                fun: Fun::Find,
-                args: vec![lhs.clone(), rhs.clone()],
-            });
+            // let slices = iproduct!(locs.clone(), locs.clone()).map(|(start, end)| AST::App {
+            //     fun: Fun::Slice,
+            //     args: vec![start.clone(), end.clone()],
+            // });
 
-            let slices = iproduct!(locs.clone(), locs.clone()).map(|(start, end)| AST::App {
-                fun: Fun::Slice,
-                args: vec![start.clone(), end.clone()],
-            });
-
-            loc_adds
-                .chain(loc_subs)
-                .chain(concats)
-                .chain(slices)
-                .chain(finds)
+            // loc_adds
+            //     .chain(loc_subs)
+            //     .chain(concats)
+            //     .chain(slices)
+            //     .chain(finds)
         }
         .filter(|adj| {
             let outs = inps.clone().map(|inp| adj.eval(inp)).collect::<Vec<_>>();

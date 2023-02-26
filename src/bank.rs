@@ -8,6 +8,22 @@ impl<T> Bank<T> {
     pub fn new() -> Self {
         Bank { entries: Vec::new() }
     }
+
+    pub fn grow_to(&mut self, size: usize) {
+        if self.entries.len() < size {
+            self.entries.extend((self.entries.len()..=size).map(|_| Vec::new()))
+        }
+    }
+
+    pub fn size(&self, size: usize) -> &Vec<T> {
+        self.grow_to(size);
+        &self.entries[size - 1]
+    }
+
+    pub fn size_mut(&mut self, size: usize) -> &mut Vec<T> {
+        self.grow_to(size);
+        &mut self.entries[size - 1]
+    }
 }
 
 pub struct BankIterator<T> {
