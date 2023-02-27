@@ -38,11 +38,12 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
         );
     }
 
-    let mut size = 5;
+    let mut size = 1;
     let inps = examples.iter().map(|(inp, _)| inp);
 
-    while size <= 10 {
+    while size <= 6 {
         bottom_up(inps.clone(), size, &mut all_cache, &mut bank);
+        // dbg!(bank.total_entries());
         let res = examples
             .iter()
             .enumerate()
@@ -196,7 +197,8 @@ fn bottom_up<'a>(
     cache: &mut HashMap<Vec<Lit>, Rc<VSA>>,
     bank: &mut Bank<AST>,
 ) {
-    dbg!(size);
+    // dbg!(size);
+    bank.grow_to(size);
     // builds a VSA for a given I/O example
     // then we can add these to the cache for `learn`
 
@@ -204,91 +206,99 @@ fn bottom_up<'a>(
     // by size so that we can just directly make expressions of the correct size
     //
     // TODO: probably remove LocAdd and LocSub in favor for LocInc and LocDec or something
-    'outer: loop {
-        let mut some_small = false;
-        let adjs: Vec<AST> = {
-            use crate::vsa::{Fun::*, Lit::*};
+    use crate::vsa::{Fun::*, Lit::*};
 
-            #[rustfmt::skip]
-            let strings_of_size = |n: usize| {
-                bank.size(n).iter().filter(|e| {
-                    matches!(
-                        e,
-                        AST::Lit(Input | StringConst(_)) | AST::App { fun: Concat | Slice, .. }
-                    )
-                })
-            };
-
-            #[rustfmt::skip]
-            let locs_of_size = |n: usize| {
-                bank.size(n).iter().filter(|e| {
-                    matches!(
-                        e,
-                        AST::Lit(LocConst(_) | LocEnd) | AST::App { fun: Find | LocAdd | LocSub, .. }
-                    )
-                })
-            };
- 
-            todo!();
-            // let loc_adds = iproduct!(locs.clone(), locs.clone()).map(|(lhs, rhs)| AST::App {
-            //     fun: Fun::LocAdd,
-            //     args: vec![lhs.clone(), rhs.clone()],
-            // });
-
-            // let loc_subs = iproduct!(locs.clone(), locs.clone()).map(|(lhs, rhs)| AST::App {
-            //     fun: Fun::LocSub,
-            //     args: vec![lhs.clone(), rhs.clone()],
-            // });
-
-            // let concats = iproduct!(strings.clone(), strings.clone()).map(|(lhs, rhs)| AST::App {
-            //     fun: Fun::Concat,
-            //     args: vec![lhs.clone(), rhs.clone()],
-            // });
-
-            // let finds = iproduct!(strings.clone(), strings.clone()).map(|(lhs, rhs)| AST::App {
-            //     fun: Fun::Find,
-            //     args: vec![lhs.clone(), rhs.clone()],
-            // });
-
-            // let slices = iproduct!(locs.clone(), locs.clone()).map(|(start, end)| AST::App {
-            //     fun: Fun::Slice,
-            //     args: vec![start.clone(), end.clone()],
-            // });
-
-            // loc_adds
-            //     .chain(loc_subs)
-            //     .chain(concats)
-            //     .chain(slices)
-            //     .chain(finds)
-        }
-        .filter(|adj| {
-            let outs = inps.clone().map(|inp| adj.eval(inp)).collect::<Vec<_>>();
-            use std::collections::hash_map::Entry;
-
-            // dbg!(adj.size(), size);
-            if adj.size() <= size {
-                some_small = true;
-            }
-
-            dbg!(adj.size(), size, bank.len());
-            if let Entry::Vacant(e) = cache.entry(outs.clone()) {
-                e.insert(Rc::new(VSA::singleton(adj.clone())));
-                adj.size() <= size
-            } else {
-                false
-            }
+    #[rustfmt::skip]
+    let strings_of_size = |n: usize| {
+        bank.size(n).iter().filter(|e| {
+            matches!(
+                e,
+                AST::Lit(Input | StringConst(_)) | AST::App { fun: Concat | Slice, .. }
+            )
         })
-        .collect::<Vec<_>>();
+    };
 
-        let l = adjs.len();
-        bank.extend(adjs);
+    #[rustfmt::skip]
+    let locs_of_size = |n: usize| {
+        bank.size(n).iter().filter(|e| {
+            matches!(
+                e,
+                AST::Lit(LocConst(_) | LocEnd) | AST::App { fun: Find | LocAdd | LocSub, .. }
+            )
+        })
+    };
 
-        if l == 0 || !some_small {
-            break 'outer;
-        }
+    let adjs: Vec<AST> = {
+
+        let loc_adds = (1..size).flat_map(|i| {
+            let lhs_size = i;
+            let rhs_size = size - i;
+            // dbg!(locs_of_size(dbg!(lhs_size)).collect::<Vec<_>>());
+            iproduct!(locs_of_size(lhs_size), locs_of_size(rhs_size)).map(|(lhs, rhs)| AST::App {
+                fun: Fun::LocAdd,
+                args: vec![lhs.clone(), rhs.clone()],
+            })
+        });
+
+        let loc_subs = (1..size).flat_map(|i| {
+            let lhs_size = i;
+            let rhs_size = size - i;
+            iproduct!(locs_of_size(lhs_size), locs_of_size(rhs_size)).map(|(lhs, rhs)| AST::App {
+                fun: Fun::LocSub,
+                args: vec![lhs.clone(), rhs.clone()],
+            })
+        });
+
+        let concats = (1..size).flat_map(|i| {
+            let lhs_size = i;
+            let rhs_size = size - i;
+            iproduct!(strings_of_size(lhs_size), strings_of_size(rhs_size)).map(|(lhs, rhs)| AST::App {
+                fun: Fun::Concat,
+                args: vec![lhs.clone(), rhs.clone()],
+            })
+        });
+
+        let finds = (1..size).flat_map(|i| {
+            let lhs_size = i;
+            let rhs_size = size - i;
+            iproduct!(strings_of_size(lhs_size), strings_of_size(rhs_size)).map(|(lhs, rhs)| AST::App {
+                fun: Fun::Find,
+                args: vec![lhs.clone(), rhs.clone()],
+            })
+        });
+
+        let slices = (1..(size)).flat_map(|i| {
+            let lhs_size = i;
+            let rhs_size = size - i;
+            iproduct!(locs_of_size(lhs_size), locs_of_size(rhs_size)).map(|(lhs, rhs)| AST::App {
+                fun: Fun::Slice,
+                args: vec![lhs.clone(), rhs.clone()],
+            })
+        });
+
+        loc_adds
+            .chain(loc_subs)
+            .chain(concats)
+            .chain(slices)
+            .chain(finds)
     }
+    .filter(|adj| {
+        let outs = inps.clone().map(|inp| adj.eval(inp)).collect::<Vec<_>>();
+        use std::collections::hash_map::Entry;
 
-    dbg!(size);
+        // dbg!(adj.size(), size);
+        // dbg!(adj.size(), size, bank.len());
+        if let Entry::Vacant(e) = cache.entry(outs.clone()) {
+            e.insert(Rc::new(VSA::singleton(adj.clone())));
+            true
+        } else {
+            false
+        }
+    })
+    .collect::<Vec<_>>();
+
+    bank.size_mut(size).extend(adjs);
+    // dbg!(&bank);
 }
 
 pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {

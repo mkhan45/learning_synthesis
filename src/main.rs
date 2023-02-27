@@ -33,21 +33,6 @@ fn main() {
     // let prog = enumerative::bottom_up(&examples, 5000);
     // dbg!(prog);
     use crate::vsa::Lit;
-    let res = top_down_vsa(&vec![
-        (
-            Lit::StringConst("I have 17 cookies second 34 number".to_string()),
-            Lit::StringConst("34".to_string()),
-        ),
-        (
-            Lit::StringConst("Give me at least 3 cookies another 2".to_string()),
-            Lit::StringConst("2".to_string()),
-        ),
-        (
-            Lit::StringConst("This number is 489 57".to_string()),
-            Lit::StringConst("57".to_string()),
-        ),
-    ]);
-    println!("{}, size = {}", res, res.size());
 
     let res = top_down_vsa(&vec![
         (
@@ -91,3 +76,58 @@ fn main() {
         Lit::StringConst("A.N.".to_string())
     );
 }
+
+macro_rules! test_duet_str {
+    ($name:ident, $($inp:expr => $out:expr),+; $($test_inp:expr => $test_out:expr),+) => {
+        #[test]
+        fn $name() {
+            use crate::vsa::Lit;
+            let res = top_down_vsa(&vec![
+                $(
+                    (
+                        Lit::StringConst($inp.to_string()),
+                        Lit::StringConst($out.to_string()),
+                    ),
+                )+
+            ]);
+            println!("{}, size = {}", res, res.size());
+
+            $(
+                assert_eq!(
+                    res.eval(&Lit::StringConst($test_inp.to_string())),
+                    Lit::StringConst($test_out.to_string())
+                );
+            )+
+        }
+    };
+}
+
+test_duet_str!(
+    test_duet_date,
+    "01/15/2013" => "01/2013",
+    "03/07/2011" => "03/2011",
+    "05/09/2009" => "05/2009";
+
+    "01/02/03" => "01/03",
+    "09/02/07" => "09/07"
+);
+
+test_duet_str!(
+    test_duet_numbers,
+    "I have 17 cookies" => "17",
+    "Give me at least 3 cookies" => "3",
+    "This number is 489" => "489";
+
+    "A string with the number 54234564 in the middle" => "54234564",
+    "36" => "36",
+    "Number at the end 74" => "74"
+);
+
+test_duet_str!(
+    test_duet_abbrev,
+    "First Last" => "F.L.",
+    "Abc Defgh" => "A.D.",
+    "Someone Name" => "S.N.";
+
+    "Another Name" => "A.N."
+);

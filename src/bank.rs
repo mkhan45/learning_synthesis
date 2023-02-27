@@ -1,5 +1,6 @@
 use std::mem::MaybeUninit;
 
+#[derive(Debug)]
 pub struct Bank<T> {
     pub entries: Vec<Vec<T>>,
 }
@@ -16,13 +17,17 @@ impl<T> Bank<T> {
     }
 
     pub fn size(&self, size: usize) -> &Vec<T> {
-        self.grow_to(size);
+        // self.grow_to(size);
         &self.entries[size - 1]
     }
 
     pub fn size_mut(&mut self, size: usize) -> &mut Vec<T> {
         self.grow_to(size);
         &mut self.entries[size - 1]
+    }
+
+    pub fn total_entries(&self) -> usize {
+        self.entries.iter().map(Vec::len).sum()
     }
 }
 
