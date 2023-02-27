@@ -38,7 +38,7 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
     let mut size = 1;
     let inps = examples.iter().map(|(inp, _)| inp);
 
-    while size <= 6 {
+    while size <= 5 {
         bottom_up(inps.clone(), size, &mut all_cache, &mut bank);
         // dbg!(bank.total_entries());
         let res = examples
@@ -183,7 +183,7 @@ fn bottom_up<'a>(
     cache: &mut HashMap<Vec<Lit>, Rc<VSA>>,
     bank: &mut Bank<AST>,
 ) {
-    // dbg!(size);
+    dbg!(size);
     bank.grow_to(size);
     // builds a VSA for a given I/O example
     // then we can add these to the cache for `learn`
