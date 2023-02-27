@@ -102,6 +102,8 @@ macro_rules! test_duet_str {
     };
 }
 
+// Run these with cargo test --release -- --nocapture to see the output
+
 test_duet_str!(
     test_duet_date,
     "01/15/2013" => "01/2013",
@@ -130,4 +132,21 @@ test_duet_str!(
     "Someone Name" => "S.N.";
 
     "Another Name" => "A.N."
+);
+
+test_duet_str!(
+    test_duet_model_no,
+    "Tire Pressure ABC123873 Monitor" => "ABC123873",
+    " Air conditioner GHF211 maintenance" => "GHF211";
+
+    " Oil Life ABC849999999021 gauge" => "ABC849999999021"
+);
+
+// fails :(
+test_duet_str!(
+    test_duet_url,
+    "http://www.example.com" => "example",
+    "https://www.apple.com/uk/mac" => "apple";
+
+    "https://www.google.com" => "google"
 );
