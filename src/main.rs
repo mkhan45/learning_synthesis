@@ -142,7 +142,6 @@ test_duet_str!(
     " Oil Life ABC849999999021 gauge" => "ABC849999999021"
 );
 
-// fails :(
 test_duet_str!(
     test_duet_url,
     "http://www.example.com" => "example",

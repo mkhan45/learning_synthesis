@@ -11,10 +11,7 @@ type VSA = crate::vsa::VSA<Lit, Fun>;
 type AST = crate::vsa::AST<Lit, Fun>;
 
 // TODO:
-// - Improve bank so I can more precisely construct programs
-// of a specific size
-// - VSA Ranking algorithm
-// - Fix inverse semantics for regexes?
+// - VSA Ranking algorithm - done but it doesn't work???
 
 fn top_down(examples: &[(Lit, Lit)]) -> VSA {
     let mut bank = Bank::new();
@@ -144,37 +141,26 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
         .collect();
 
         unifier.push(VSA::Union(set));
-    },
+    }
 
-    (Lit::LocConst(n), Lit::StringConst(s)) if *n == s.len() => {
-        unifier.push(VSA::singleton(AST::Lit(Lit::LocEnd)));
+    // TODO: figure out the index
+    // (Lit::LocConst(n), Lit::StringConst(s)) if s.chars().nth(*n).is_some_and(|ch| ch == ' ') => {
+    //     let lhs = Rc::new(VSA::singleton(AST::Lit(Lit::Input)));
+    //     let space = cache.get(&Lit::StringConst(" ".to_string())).unwrap().clone();
+    //     let wb = cache.get(&Lit::StringConst("\\b".to_string())).unwrap().clone();
 
-        if s.chars().last().is_some_and(|ch| ch.is_alphanumeric()) {
-            let wb = cache.get(&Lit::StringConst("\\b".to_string())).unwrap().clone();
-            unifier.push(VSA::Join {
-                op: Fun::Find,
-                children: vec![
-                    Rc::new(VSA::singleton(AST::Lit(Lit::Input))),
-                    wb,
-                ],
-            });
-        }
-    },
-    (Lit::LocConst(n), Lit::StringConst(s)) if s.find(' ') == Some(*n) => {
-        let lhs = Rc::new(VSA::singleton(AST::Lit(Lit::Input)));
-        let space = cache.get(&Lit::StringConst(" ".to_string())).unwrap().clone();
-        let wb = cache.get(&Lit::StringConst("\\b".to_string())).unwrap().clone();
-        unifier.push(VSA::Join {
-            op: Fun::Find,
-            children: vec![lhs.clone(), space],
-        });
+    //     unifier.push(VSA::Join {
+    //         op: Fun::Find,
+    //         children: vec![lhs.clone(), space],
+    //     });
 
-        if s.chars().nth(*n).is_some_and(|ch| ch.is_alphanumeric()) {
-            unifier.push(VSA::Join {
-                op: Fun::Find,
-                children: vec![lhs, wb],
-            });
-        }}
+    //     if s.chars().nth(n - 1).is_some_and(|ch| ch.is_alphanumeric()) {
+    //         unifier.push(VSA::Join {
+    //             op: Fun::Find,
+    //             children: vec![lhs, wb],
+    //         });
+    //     }
+    // }
     );
 
     let res = unifier
@@ -258,14 +244,21 @@ fn bottom_up<'a>(
             })
         });
 
-        let finds = (1..size).flat_map(|i| {
-            let lhs_size = i;
-            let rhs_size = size - i;
-            iproduct!(strings_of_size(lhs_size), strings_of_size(rhs_size)).map(|(lhs, rhs)| AST::App {
-                fun: Fun::Find,
-                args: vec![lhs.clone(), rhs.clone()],
-            })
-        });
+        let finds = (1..size-1).flat_map(|l| {
+            (l+1..size).flat_map(move |r| {
+                let lhs_size = l;
+                let rhs_size = r - l;
+                let index_size = size - r;
+                // dbg!(lhs_size, rhs_size, index_size);
+                iproduct!(
+                    strings_of_size(lhs_size),
+                    strings_of_size(rhs_size),
+                    locs_of_size(index_size)
+                ).map(|(lhs, rhs, index)| AST::App {
+                        fun: Fun::Find,
+                        args: vec![lhs.clone(), rhs.clone(), index.clone()],
+                    })
+            })});
 
         let slices = (1..(size)).flat_map(|i| {
             let lhs_size = i;
@@ -281,48 +274,48 @@ fn bottom_up<'a>(
             .chain(concats)
             .chain(slices)
             .chain(finds)
-    }
-    .filter(|adj| {
-        let outs = inps.clone().map(|inp| adj.eval(inp)).collect::<Vec<_>>();
-        use std::collections::hash_map::Entry;
-
-        // dbg!(adj.size(), size);
-        // dbg!(adj.size(), size, bank.len());
-        if let Entry::Vacant(e) = cache.entry(outs.clone()) {
-            e.insert(Rc::new(VSA::singleton(adj.clone())));
-            true
-        } else {
-            false
         }
-    })
-    .collect::<Vec<_>>();
+        .filter(|adj| {
+            let outs = inps.clone().map(|inp| adj.eval(inp)).collect::<Vec<_>>();
+            use std::collections::hash_map::Entry;
 
-    bank.size_mut(size).extend(adjs);
-    // dbg!(&bank);
-}
+            // dbg!(adj.size(), size);
+            // dbg!(adj.size(), size, bank.len());
+            if let Entry::Vacant(e) = cache.entry(outs.clone()) {
+                e.insert(Rc::new(VSA::singleton(adj.clone())));
+                true
+            } else {
+                false
+            }
+        })
+        .collect::<Vec<_>>();
 
-pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {
-    top_down(examples)
-        .pick_best(|ast| ast.cost(Fun::cost))
-        .unwrap()
-}
+        bank.size_mut(size).extend(adjs);
+        // dbg!(&bank);
+    }
 
-pub fn examples() -> Vec<(Lit, Lit)> {
-    vec![
-        (
-            Lit::StringConst("I have 17 cookies".to_string()),
-            Lit::LocConst(9),
-            // Lit::StringConst("17".to_string()),
-        ),
-        (
-            Lit::StringConst("Give me at least 3 cookies".to_string()),
-            Lit::LocConst(18),
-            // Lit::StringConst("3".to_string()),
-        ),
-        (
-            Lit::StringConst("This number is 489".to_string()),
-            Lit::LocConst(18),
-            // Lit::StringConst("489".to_string()),
-        ),
-    ]
-}
+    pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {
+        top_down(examples)
+            .pick_best(|ast| ast.cost(Fun::cost))
+            .unwrap()
+    }
+
+    pub fn examples() -> Vec<(Lit, Lit)> {
+        vec![
+            (
+                Lit::StringConst("I have 17 cookies".to_string()),
+                Lit::LocConst(9),
+                // Lit::StringConst("17".to_string()),
+            ),
+            (
+                Lit::StringConst("Give me at least 3 cookies".to_string()),
+                Lit::LocConst(18),
+                // Lit::StringConst("3".to_string()),
+            ),
+            (
+                Lit::StringConst("This number is 489".to_string()),
+                Lit::LocConst(18),
+                // Lit::StringConst("489".to_string()),
+            ),
+        ]
+    }

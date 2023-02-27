@@ -292,10 +292,19 @@ impl Language<Lit> for Fun {
                 Lit::StringConst(buf)
             }
             Fun::Find => match args {
-                [Lit::StringConst(outer), Lit::StringConst(inner)] => {
+                [Lit::StringConst(outer), Lit::StringConst(inner), index] => {
+                    let i = match index {
+                        Lit::LocConst(i) => *i,
+                        Lit::LocEnd => outer.len(),
+                        _ => panic!(),
+                    };
+
                     let re = Regex::new(inner).unwrap();
-                    re.find(outer)
-                        .map(|m| Lit::LocConst(m.start()))
+                    let mut found = re.find_iter(outer)
+                        .map(|m| Lit::LocConst(m.start()));
+
+                    found
+                        .nth(i)
                         .unwrap_or(Lit::LocEnd)
                 }
                 _ => panic!(),
@@ -381,8 +390,8 @@ impl Display for AST<Lit, Fun> {
                 fun: Fun::Find,
                 args,
             } => {
-                let (fst, snd) = (args[0].clone(), args[1].clone());
-                write!(f, "{fst}.find({snd})")
+                let (fst, snd, i) = (args[0].clone(), args[1].clone(), args[2].clone());
+                write!(f, "{fst}.find({snd}, {i})")
             }
             AST::App {
                 fun: Fun::Slice,
