@@ -1,28 +1,20 @@
 # learning_synthesis
 
 ```
-    let res = top_down_vsa(&vec![
-        (
-            Lit::StringConst("I have 17 cookies".to_string()),
-            Lit::StringConst("17".to_string()),
-        ),
-        (
-            Lit::StringConst("Give me at least 3 cookies".to_string()),
-            Lit::StringConst("3".to_string()),
-        ),
-        (
-            Lit::StringConst("This number is 489".to_string()),
-            Lit::StringConst("489".to_string()),
-        ),
-    ]);
-    println!("{}, size = {}", res, res.size()); // X[X.find('\d')..(' ' <> X).find(('\d' <> '\b'))]
-    assert_eq!(
-        res.eval(&Lit::StringConst(
-            "A string with the number 54234564 in the middle".to_string()
-        )),
-        Lit::StringConst("54234564".to_string())
-    );
- ```
+// generates: (X[X.find('\d', 0)..(1 + X.find(('\d' <> '\b'), 0))]), size = 13
+test_str!(
+    test_duet_numbers,
+    "I have 17 cookies" => "17",
+    "Give me at least 3 cookies" => "3",
+    "This number is 489" => "489";
+
+    "A string with the number 54234564 in the middle" => "54234564",
+    "36" => "36",
+    "Number at the end 74" => "74"
+);
+
+More examples in tests.rs
+```
 
 Roughly following these to learn synthesis
 - <https://github.com/nadia-polikarpova/cse291-program-synthesis>
@@ -39,8 +31,10 @@ Goals:
     - https://dl.acm.org/doi/10.1145/3434335
     - probably lacking some things but the overall approach is the same
     - src/main/top_down_vsa.rs
-- Skolemization
+- [ ] Skolemization?
     - https://www.microsoft.com/en-us/research/wp-content/uploads/2016/12/oopsla15-pbe.pdf
     - parallelizing somehow
+    - might not because wasm threads are hard
+- [ ] Conditionals?
 - [ ] Middle Out?
   - https://dl.acm.org/doi/pdf/10.1145/3571226
