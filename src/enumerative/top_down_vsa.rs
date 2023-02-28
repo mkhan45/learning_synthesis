@@ -11,9 +11,9 @@ type VSA = crate::vsa::VSA<Lit, Fun>;
 type AST = crate::vsa::AST<Lit, Fun>;
 
 // TODO:
-// - VSA Ranking algorithm - done but it doesn't work???
+// - intersection broken?
 
-fn top_down(examples: &[(Lit, Lit)]) -> VSA {
+fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
     let mut bank = Bank::new();
     let mut all_cache = HashMap::new();
     for prim in [
@@ -64,14 +64,13 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
             .as_ref()
             .clone();
 
-        if res.pick_one().is_some() {
-            return res;
-        } else {
-            size += 1;
+        match res.pick_best(|ast| ast.cost(Fun::cost)) {
+            res@Some(_) => return res,
+            None => size += 1,
         }
     }
 
-    VSA::empty()
+    None
 }
 
 // TODO:
@@ -293,9 +292,7 @@ fn bottom_up<'a>(
     }
 
     pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {
-        top_down(examples)
-            .pick_best(|ast| ast.cost(Fun::cost))
-            .unwrap()
+        top_down(examples).unwrap()
     }
 
     pub fn examples() -> Vec<(Lit, Lit)> {

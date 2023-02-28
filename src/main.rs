@@ -21,14 +21,17 @@ fn main() {
              Lit::StringConst("short line".to_string())
          ),
         // (
-        //     Lit::StringConst("aa/aa/aa".to_string()), 
-        //      Lit::StringConst("aaaa".to_string())
-        //  )
+        //     Lit::StringConst("remove /this/".to_string()), 
+        //      Lit::StringConst("remove ".to_string())
+        //  ),
+        (
+            Lit::StringConst("aa/aa/aa".to_string()), 
+             Lit::StringConst("aaaa".to_string())
+         )
     ]);
 
     // 🙃
     // intersection is broken?
-    // it finds it without the second example
     println!("{:?}", res.eval(&Lit::StringConst("short/ no / line".to_string())));
     println!("{:?}", res.eval(&Lit::StringConst("aa/aa/aa".to_string())));
     println!("{res}");
