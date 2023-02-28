@@ -38,7 +38,7 @@ fn top_down(examples: &[(Lit, Lit)]) -> VSA {
     let mut size = 1;
     let inps = examples.iter().map(|(inp, _)| inp);
 
-    while size <= 5 {
+    while size <= 8 {
         bottom_up(inps.clone(), size, &mut all_cache, &mut bank);
         // dbg!(bank.total_entries());
         let res = examples
@@ -102,13 +102,11 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
     // (Lit::StringConst(s), _) if s.as_str() == "." => {
     //     unifier.push(VSA::singleton(AST::Lit(Lit::StringConst(".".to_string()))))
     // },
-    // (Lit::LocConst(0), _) => unifier.push(VSA::singleton(AST::Lit(Lit::LocConst(0)))),
-    // (Lit::LocConst(1), _) => unifier.push(VSA::singleton(AST::Lit(Lit::LocConst(1)))),
-    // (Lit::LocEnd, _) => unifier.push(VSA::singleton(AST::Lit(Lit::LocEnd))),
 
     (Lit::StringConst(s), Lit::StringConst(inp_str)) if inp_str.contains(s) => {
         let start = inp_str.find(s).unwrap();
         let end = start + s.len();
+        // dbg!(s, start, end);
         let start_vsa = learn(inp, &Lit::LocConst(start), cache);
         let end_vsa = learn(inp, &Lit::LocConst(end), cache);
         unifier.push(VSA::Join {
@@ -183,7 +181,7 @@ fn bottom_up<'a>(
     cache: &mut HashMap<Vec<Lit>, Rc<VSA>>,
     bank: &mut Bank<AST>,
 ) {
-    dbg!(size);
+    // dbg!(size);
     bank.grow_to(size);
     // builds a VSA for a given I/O example
     // then we can add these to the cache for `learn`

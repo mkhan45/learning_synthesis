@@ -15,18 +15,22 @@ pub mod vsa;
 fn main() {
     use crate::vsa::Lit;
 
-    // for some reason this makes bottom up hang???
     let res = top_down_vsa(&vec![
         (
-            Lit::StringConst("This is a line. /delete words in the area /keep this part".to_string()), 
-             Lit::StringConst("This is a line. keep this part".to_string())
+            Lit::StringConst("short/ no / line".to_string()), 
+             Lit::StringConst("short line".to_string())
          ),
-        (
-            Lit::StringConst("a different/line/".to_string()), 
-             Lit::StringConst("a different".to_string())
-         )
+        // (
+        //     Lit::StringConst("aa/aa/aa".to_string()), 
+        //      Lit::StringConst("aaaa".to_string())
+        //  )
     ]);
 
+    // 🙃
+    // intersection is broken?
+    // it finds it without the second example
+    println!("{:?}", res.eval(&Lit::StringConst("short/ no / line".to_string())));
+    println!("{:?}", res.eval(&Lit::StringConst("aa/aa/aa".to_string())));
     println!("{res}");
 }
 
@@ -104,6 +108,7 @@ test_duet_str!(
 );
 
 // hangs
+// I think the strings are too long
 // test_duet_str!(
 //     test_delete_between,
 //     "This is a line. /delete words in the area /keep this part" => "This is a line. keep this part";
