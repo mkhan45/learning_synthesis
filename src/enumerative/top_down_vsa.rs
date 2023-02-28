@@ -333,23 +333,3 @@ fn bottom_up<'a>(
 pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {
     top_down(examples).unwrap()
 }
-
-pub fn examples() -> Vec<(Lit, Lit)> {
-    vec![
-        (
-            Lit::StringConst("I have 17 cookies".to_string()),
-            Lit::LocConst(9),
-            // Lit::StringConst("17".to_string()),
-        ),
-        (
-            Lit::StringConst("Give me at least 3 cookies".to_string()),
-            Lit::LocConst(18),
-            // Lit::StringConst("3".to_string()),
-        ),
-        (
-            Lit::StringConst("This number is 489".to_string()),
-            Lit::LocConst(18),
-            // Lit::StringConst("489".to_string()),
-        ),
-    ]
-}

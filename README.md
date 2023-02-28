@@ -27,6 +27,7 @@
 Roughly following these to learn synthesis
 - <https://github.com/nadia-polikarpova/cse291-program-synthesis>
 - <https://people.csail.mit.edu/asolar/SynthesisCourse/index.htm>
+- <https://www.microsoft.com/en-us/research/wp-content/uploads/2016/12/oopsla15-pbe.pdf>
 
 Goals:
 - [X] Bottom Up
@@ -38,5 +39,8 @@ Goals:
     - https://dl.acm.org/doi/10.1145/3434335
     - probably lacking some things but the overall approach is the same
     - src/main/top_down_vsa.rs
+- Skolemization
+    - https://www.microsoft.com/en-us/research/wp-content/uploads/2016/12/oopsla15-pbe.pdf
+    - parallelizing somehow
 - [ ] Middle Out?
   - https://dl.acm.org/doi/pdf/10.1145/3571226
