@@ -107,6 +107,13 @@ test_duet_str!(
     "https://www.google.com" => "google"
 );
 
+// TODO: for long strings, probably gotta use middle
+// out so that the concat witness function isnt massive
+//
+// probably can use string length as a heuristic for when
+// to switch from normal witness to fancier cut
+//
+// What's the difference between a normal witness function and a cut?
 test_duet_str!(
     test_delete_between,
     "short /no/ line" => "short  line",
