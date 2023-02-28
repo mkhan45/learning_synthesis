@@ -32,6 +32,9 @@
         </table>
         <div>Program: <code id="program"></code></div>
         <button id="run">Run</button>
+        <div id="examples">
+            <h2>Examples</h2>
+        </div>
     </body>
     <script type="module">
         import init, { synthesize } from "./pkg/synthesizer.js";
@@ -80,6 +83,55 @@
                 console.log("error :(");
             }
         }
+
         run();
+
+        let ex_div = document.querySelector('#examples');
+        let examples = [
+            {
+                name: "URLs",
+                inps: [
+                    "http://www.example.com",
+                    "https://www.apple.com/uk/mac",
+                    "https://www.google.com",
+                    "www.mikail-khan.com"
+                ],
+                outs: ["example", "apple", "", ""]
+            },
+            {
+                name: "Abbreviations",
+                inps: [
+                    "First Last",
+                    "Hi Aref",
+                    "Bed Time",
+                    "Another Name",
+                    "Bhavesh Pareek"
+                ],
+                outs: ["F.L.", "", "", "", ""]
+            },
+            {
+                name: "Numbers",
+                inps: [
+                    "I have 17 cookies",
+                    "Give me at least 3 cookies",
+                    "This number is 489",
+                    "A string with the number 54234564 in the middle",
+                    "36"
+                ],
+                outs: ["17", "3", "489", "", ""]
+            },
+        ];
+
+        for (let example of examples) {
+            let btn = document.createElement('button');
+            btn.innerHTML = example.name;
+            btn.onclick = () => {
+                for (let i = 0; i < example.inps.length; i += 1) {
+                    tab.rows[i+1].cells[0].childNodes[0].value = example.inps[i];
+                    tab.rows[i+1].cells[1].childNodes[0].value = example.outs[i];
+                }
+            };
+            ex_div.appendChild(btn);
+        }
     </script>
 </html>
