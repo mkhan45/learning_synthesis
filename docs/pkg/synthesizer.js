@@ -1,8 +1,17 @@
-let wasm;
+let wasm_bindgen;
+(function() {
+    const __exports = {};
+    let script_src;
+    if (typeof document === 'undefined') {
+        script_src = location.href;
+    } else {
+        script_src = new URL(document.currentScript.src, location.href).toString();
+    }
+    let wasm;
 
-const heap = new Array(128).fill(undefined);
+    const heap = new Array(128).fill(undefined);
 
-heap.push(undefined, null, true, false);
+    heap.push(undefined, null, true, false);
 
 function getObject(idx) { return heap[idx]; }
 
@@ -138,7 +147,7 @@ function passArrayJsValueToWasm0(array, malloc) {
 * @param {(string)[]} tests
 * @returns {Map<any, any>}
 */
-export function synthesize(inps, outs, tests) {
+__exports.synthesize = function(inps, outs, tests) {
     const ptr0 = passArrayJsValueToWasm0(inps, wasm.__wbindgen_malloc);
     const len0 = WASM_VECTOR_LEN;
     const ptr1 = passArrayJsValueToWasm0(outs, wasm.__wbindgen_malloc);
@@ -147,7 +156,7 @@ export function synthesize(inps, outs, tests) {
     const len2 = WASM_VECTOR_LEN;
     const ret = wasm.synthesize(ptr0, len0, ptr1, len1, ptr2, len2);
     return takeObject(ret);
-}
+};
 
 async function load(module, imports) {
     if (typeof Response === 'function' && module instanceof Response) {
@@ -252,7 +261,7 @@ function initSync(module) {
 
 async function init(input) {
     if (typeof input === 'undefined') {
-        input = new URL('synthesizer_bg.wasm', import.meta.url);
+        input = script_src.replace(/\.js$/, '_bg.wasm');
     }
     const imports = getImports();
 
@@ -267,5 +276,18 @@ async function init(input) {
     return finalizeInit(instance, module);
 }
 
-export { initSync }
-export default init;
+wasm_bindgen = Object.assign(init, { initSync }, __exports);
+
+})();
+
+const init = wasm_bindgen;
+const {synthesize} = init;
+const prom = init();
+self.addEventListener("message", async (e) => {
+  const {inps, outs, tests} = e.data;
+  await prom;
+  const result = synthesize(inps, outs, tests);
+
+  self.postMessage(result);
+});
+

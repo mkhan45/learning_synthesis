@@ -10,24 +10,24 @@
                 <th>Output</th>
             </tr>
             <tr>
-                <td><input type="text"/></td>
-                <td><input type="text"/></td>
+                <td><input type="text" /></td>
+                <td><input type="text" /></td>
             </tr>
             <tr>
-                <td><input type="text"/></td>
-                <td><input type="text"/></td>
+                <td><input type="text" /></td>
+                <td><input type="text" /></td>
             </tr>
             <tr>
-                <td><input type="text"/></td>
-                <td><input type="text"/></td>
+                <td><input type="text" /></td>
+                <td><input type="text" /></td>
             </tr>
             <tr>
-                <td><input type="text"/></td>
-                <td><input type="text"/></td>
+                <td><input type="text" /></td>
+                <td><input type="text" /></td>
             </tr>
             <tr>
-                <td><input type="text"/></td>
-                <td><input type="text"/></td>
+                <td><input type="text" /></td>
+                <td><input type="text" /></td>
             </tr>
         </table>
         <div>Program: <code id="program"></code></div>
@@ -36,16 +36,13 @@
             <h2>Examples</h2>
         </div>
     </body>
-    <script type="module">
-        import init, { synthesize } from "./pkg/synthesizer.js";
+    <script>
         async function run() {
-            await init();
-            if (document.querySelector('#run').onclick == undefined) {
-                document.querySelector('#run').onclick = run;
+            if (document.querySelector("#run").onclick == undefined) {
+                document.querySelector("#run").onclick = run;
                 return;
             }
-
-            let tab = document.querySelector('#tab');
+            let tab = document.querySelector("#tab");
             let inps = [];
             let outs = [];
             let tests = [];
@@ -68,19 +65,40 @@
             if (inps.length == 0) {
                 return;
             }
+            const worker = new Worker("/pkg/synthesizer.js");
+            worker.postMessage({inps, outs, tests});
+            const result = await Promise.race([
+                new Promise((resolve) =>
+                    worker.addEventListener(
+                        "message",
+                        ({data}) => {
+                            resolve(data);
+                        },
+                        {
+                            once: true,
+                        }
+                    )
+                ),
+                new Promise((resolve) => {
+                    setTimeout(() => {
+                        console.log("timeout");
+                        resolve({error: true});
+                    }, 2_000);
+                }),
+            ]);
+            worker.terminate();
 
-            let result = synthesize(inps, outs, tests);
-            if (!result.get('error')) {
-                let program = result.get('program');
-                let results = result.get('test_results');
-                document.querySelector('#program').innerHTML = program;
+            if (!result.error) {
+                let program = result.get("program");
+                let results = result.get("test_results");
+                document.querySelector("#program").innerHTML = program;
                 for (let i = 0; i < results.length; i += 1) {
                     let row = tab.rows[i + 1];
                     row.cells[1].childNodes[0].value = results[i];
                 }
             } else {
-                document.querySelector('#program').innerHTML = "not found";
                 console.log("error :(");
+                document.querySelector("#program").innerHTML = "An error occured :(";
             }
         }
 
