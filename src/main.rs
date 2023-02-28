@@ -100,6 +100,16 @@ test_duet_str!(
     "https://www.google.com" => "google"
 );
 
+// TODO: this one is much harder,
+// probably need a new regex
+// test_duet_str!(
+//     test_duet_url,
+//     "http://www.example.com" => "example",
+//     "https://apple.com/uk/mac" => "apple";
+
+//     "https://www.google.com" => "google"
+// );
+
 // TODO: for long strings, probably gotta use middle
 // out so that the concat witness function isnt massive
 //

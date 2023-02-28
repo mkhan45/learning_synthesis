@@ -24,7 +24,10 @@ fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
                 inp.chars()
                     .chain(out.chars())
                     .filter(|c| !c.is_alphanumeric())
-                    .map(|c| Lit::StringConst(c.to_string()))
+                    .map(|c| match c {
+                        '.' => Lit::StringConst("\\.".to_string()),
+                        _ => Lit::StringConst(c.to_string()),
+                    })
                     .collect::<HashSet<_>>()
             },
             _ => panic!(),
