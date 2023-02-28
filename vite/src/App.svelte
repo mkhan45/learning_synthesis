@@ -9,6 +9,10 @@
   let examples: Array<IO> = [{in: "", out: null}];
   let program: string = "None";
 
+  function removeExample() {
+    examples = examples.slice(0, -1);
+  }
+
   function pushExample() {
     examples = [...examples, {in: "", out: null}];
   }
@@ -55,7 +59,7 @@
     program = "Synthesizing...";
     let inps = examples.filter(e => e.out != null && e.out != "").map(e => e.in);
     let outs = examples.filter(e => e.out != null && e.out != "").map(e => e.out);
-    let tests = examples.map(e => e.in);
+    let tests = examples.filter(e => e.in != null && e.in != "").map(e => e.in);
 
     console.log(inps, outs);
 
@@ -127,6 +131,7 @@
                 <tr>
         {/each}
     </table>
+    <button on:click={removeExample}>-</button>
     <button on:click={pushExample}>+</button>
     <pre class="program-box">Program: {program}</pre>
     <button on:click={run}>Run</button>
