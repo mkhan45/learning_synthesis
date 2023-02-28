@@ -115,9 +115,6 @@ test_duet_str!(
     "remove /this/" => "remove "
 );
 
-// fails :(
-// probably gotta make witness function for slice return multiple possible
-// ranges
 test_duet_str!(
     test_duet_money,
     "USD.EUR<IDEALPRO,CASH,EUR>" => "EUR",

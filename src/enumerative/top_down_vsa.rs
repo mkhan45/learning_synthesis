@@ -4,6 +4,7 @@ use std::{
 };
 
 use itertools::iproduct;
+use regex::Regex;
 
 use crate::{vsa::{Fun, Lit}, bank::Bank};
 
@@ -124,18 +125,35 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
     // },
 
     (Lit::StringConst(s), Lit::StringConst(inp_str)) if inp_str.contains(s) => {
-        let start = inp_str.find(s).unwrap();
-        let end = start + s.len();
-        // dbg!(s, start, end);
-        let start_vsa = learn(inp, &Lit::LocConst(start), cache);
-        let end_vsa = learn(inp, &Lit::LocConst(end), cache);
-        unifier.push(VSA::Join {
-            op: Fun::Slice,
-            children: vec![
-                start_vsa,
-                end_vsa,
-            ],
-        });
+        let re = Regex::new(s).unwrap();
+
+        re.find_iter(inp_str)
+            .map(|m| {
+                let start = m.start();
+                let end = m.end();
+                let start_vsa = learn(inp, &Lit::LocConst(start), cache);
+                let end_vsa = learn(inp, &Lit::LocConst(end), cache);
+                VSA::Join {
+                    op: Fun::Slice,
+                    children: vec![
+                        start_vsa,
+                        end_vsa,
+                    ],
+                }
+            })
+            .for_each(|vsa| unifier.push(vsa));
+        // let start = inp_str.find(s).unwrap();
+        // let end = start + s.len();
+        // // dbg!(s, start, end);
+        // let start_vsa = learn(inp, &Lit::LocConst(start), cache);
+        // let end_vsa = learn(inp, &Lit::LocConst(end), cache);
+        // unifier.push(VSA::Join {
+        //     op: Fun::Slice,
+        //     children: vec![
+        //         start_vsa,
+        //         end_vsa,
+        //     ],
+        // });
     },
 
     (Lit::StringConst(s), Lit::StringConst(_)) => {
