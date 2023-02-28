@@ -1,23 +1,9 @@
-<script lang="ts">
-  import * as _ from "lodash"
+type IO = {
+    in: string;
+    out: string | null;
+};
 
-  type IO = {
-    in: string,
-    out: string | null,
-  };
-
-  let examples: Array<IO> = [{in: "", out: null}];
-  let program: string = "None";
-
-  function pushExample() {
-    examples = [...examples, {in: "", out: null}];
-  }
-
-  function setExamples(exs: Array<IO>) {
-    examples = exs;
-  }
-
-  const builtin_examples: Array<{name: string, io: Array<IO>}> = [
+const builtin_examples: Array<{name: string, io: Array<IO>}> = [
       {
         name: "URLs",
         io: [
@@ -51,7 +37,7 @@
       },
   ];
 
-  async function run() {
+  async function synthesize(examples: Array<IO>) {
     program = "Synthesizing...";
     let inps = examples.filter(e => e.out != null && e.out != "").map(e => e.in);
     let outs = examples.filter(e => e.out != null && e.out != "").map(e => e.out);
@@ -109,55 +95,5 @@
       // document.querySelector("#program").innerHTML = "An error occured :(";
     }
   }
-</script>
 
-<main>
-    <h1 style="margin-bottom: 0.1em">FlashFill--</h1>
-    <div style="margin-bottom: 1em"><a href="https://github.com/mkhan45/learning_synthesis">GitHub</a></div>
-
-    <table>
-        <tr>
-            <th>Input</th>
-            <th>Output</th>
-        </tr>
-        {#each examples as {in: inp, out}}
-            <tr>
-                <td><input type="text" bind:value={inp} /></td>
-                <td><input type="text" bind:value={out} /></td>
-                <tr>
-        {/each}
-    </table>
-    <button on:click={pushExample}>+</button>
-    <pre class="program-box">Program: {program}</pre>
-    <button on:click={run}>Run</button>
-
-    <h2>Examples</h2>
-    {#each builtin_examples as {name, io}}
-        <button on:click={() => setExamples(io)}>{name}</button>
-    {/each}
-</main>
-
-<style>
-    table {
-        width: 100%;
-    }
-
-    input {
-        width: 100%;
-        text-align: center;
-    }
-
-    button {
-        width: 100%;
-    }
-
-    .program-box {
-        margin-top: 1em;
-        margin-bottom: 0.15em;
-    }
-
-    pre {
-        font-size: 1.5em;
-        min-width: 80ch;
-    }
-</style>
+export { IO, builtin_examples, run }
