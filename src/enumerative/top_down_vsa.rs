@@ -134,6 +134,9 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
     // (Lit::StringConst(s), _) if s.as_str() == "." => {
     //     unifier.push(VSA::singleton(AST::Lit(Lit::StringConst(".".to_string()))))
     // },
+    //
+    // TODO:
+    // this makes it impossible to learn in one shot
     (Lit::StringConst(s), _) => {
         unifier.push(VSA::singleton(AST::Lit(Lit::StringConst(s.clone()))))
     },
