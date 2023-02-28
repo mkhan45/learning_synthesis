@@ -84,7 +84,7 @@
           if (finished) return;
           console.log("timeout");
           resolve({error: true});
-        }, 10_000);
+        }, 15_000);
       }),
     ]);
     worker.terminate();
