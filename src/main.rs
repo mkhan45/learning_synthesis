@@ -142,3 +142,11 @@ test_str!(
     "two second example" => "second example",
     "four fourth example" => "fourth example"
 );
+
+test_str!(
+    test_append,
+    "Hello" => "Hello World",
+    "AAA" => "AAA World";
+
+    "B" => "B World"
+);

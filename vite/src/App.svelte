@@ -35,7 +35,7 @@
         name: "Abbreviations",
         io: [
             {in: "First Last", out: "F.L."},
-            {in: "Hi Aref", out: null},
+            {in: "Hi Aref", out: "H.A."},
             {in: "Bed Time", out: null},
             {in: "Another Name", out: null},
             {in: "Bhavesh Pareek", out: null},

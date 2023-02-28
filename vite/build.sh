@@ -3,8 +3,8 @@
 cargo +nightly build --release --target=wasm32-unknown-unknown
 echo "Optimizing wasm..."
 wasm-opt -O3 target/wasm32-unknown-unknown/release/synthesizer.wasm -o vite/synthesizer-opt.wasm
-wasm-bindgen vite/synthesizer-opt.wasm --out-dir vite/src/pkg
-wasm-bindgen target/wasm32-unknown-unknown/release/synthesizer.wasm --out-dir vite/src/pkg --target no-modules
+wasm-bindgen vite/synthesizer-opt.wasm --out-dir vite/public/pkg
+wasm-bindgen target/wasm32-unknown-unknown/release/synthesizer.wasm --out-dir vite/public/pkg --target no-modules
 rm vite/synthesizer-opt.wasm
 
 
@@ -18,4 +18,4 @@ self.addEventListener("message", async (e) => {
   const result = synthesize(inps, outs, tests);
   self.postMessage(result);
 });
-' >> vite/src/pkg/synthesizer.js
+' >> vite/public/pkg/synthesizer.js
