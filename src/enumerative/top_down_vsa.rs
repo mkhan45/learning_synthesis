@@ -134,6 +134,9 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
     // (Lit::StringConst(s), _) if s.as_str() == "." => {
     //     unifier.push(VSA::singleton(AST::Lit(Lit::StringConst(".".to_string()))))
     // },
+    (Lit::StringConst(s), _) => {
+        unifier.push(VSA::singleton(AST::Lit(Lit::StringConst(s.clone()))))
+    },
 
     (Lit::LocConst(n), Lit::StringConst(inp_str)) if inp_str.len() == *n => {
         unifier.push(VSA::singleton(AST::Lit(Lit::LocEnd)));
