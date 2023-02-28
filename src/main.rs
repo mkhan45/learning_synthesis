@@ -107,11 +107,23 @@ test_duet_str!(
     "https://www.google.com" => "google"
 );
 
-// hangs
-// I think the strings are too long
-// test_duet_str!(
-//     test_delete_between,
-//     "This is a line. /delete words in the area /keep this part" => "This is a line. keep this part";
+test_duet_str!(
+    test_delete_between,
+    "short /no/ line" => "short  line",
+    "aa/aa/aa" => "aaaa";
 
-//     "test some/ aaaaaaaaaa xxxxxxxxx / more words" => "test some more words"
-// );
+    "remove /this/" => "remove "
+);
+
+// fails :(
+// probably gotta make witness function for slice return multiple possible
+// ranges
+test_duet_str!(
+    test_duet_money,
+    "USD.EUR<IDEALPRO,CASH,EUR>" => "EUR",
+    "USD.EUR<IDEALPRO,CASH,USD>" => "USD";
+
+    "KOR.JPN<IDEALPRO,CASH,WON>" => "WON",
+    "USD.EUR<IDEALPRO,CASH,JPY>" => "JPY",
+    "USD.KOR<IDEALPRO,CASH,GBP>" => "GBP"
+);

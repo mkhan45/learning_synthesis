@@ -16,6 +16,25 @@ type AST = crate::vsa::AST<Lit, Fun>;
 fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
     let mut bank = Bank::new();
     let mut all_cache = HashMap::new();
+
+    let mut char_sets = examples.iter().map(|(inp, out)| {
+        match (inp, out) {
+            (Lit::StringConst(inp), Lit::StringConst(out)) => {
+                inp.chars()
+                    .chain(out.chars())
+                    .filter(|c| !c.is_alphanumeric())
+                    .map(|c| Lit::StringConst(c.to_string()))
+                    .collect::<HashSet<_>>()
+            },
+            _ => panic!(),
+        }
+    });
+    let intersection = char_sets.next().map(|s1| {
+        s1.iter().filter(|c| {
+            char_sets.clone().all(|s2| s2.contains(c))
+        }).cloned().collect::<Vec<_>>()
+    }).unwrap_or(Vec::new());
+
     // TODO: smart way to identify prims?
     // maybe look for common characters that aren't alphanum
     for prim in [
@@ -24,16 +43,15 @@ fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
         Lit::StringConst(".".to_string()),
         Lit::StringConst("\\d".to_string()),
         Lit::StringConst("\\b".to_string()),
-        Lit::StringConst("/".to_string()),
         Lit::LocConst(0),
         Lit::LocConst(1),
         Lit::LocEnd,
-    ] {
+    ].into_iter().chain(intersection.into_iter()) {
         bank.size_mut(1).push(AST::Lit(prim.clone()));
         all_cache.insert(
             std::iter::repeat(prim.clone())
-                .take(examples.len())
-                .collect(),
+            .take(examples.len())
+            .collect(),
             Rc::new(VSA::singleton(AST::Lit(prim.clone()))),
         );
     }
@@ -41,7 +59,7 @@ fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
     let mut size = 1;
     let inps = examples.iter().map(|(inp, _)| inp);
 
-    while size <= 8 {
+    while size <= 7 {
         bottom_up(inps.clone(), size, &mut all_cache, &mut bank);
         // dbg!(bank.total_entries());
         let res = examples
@@ -59,10 +77,10 @@ fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
 
                 learn(inp, out, &mut cache)
             })
-            // .inspect(|vsa| {
-            //     println!("VSA: {:?}", vsa);
-            // })
-            .reduce(|a, b| Rc::new(a.intersect(b.as_ref())))
+        // .inspect(|vsa| {
+        //     println!("VSA: {:?}", vsa);
+        // })
+        .reduce(|a, b| Rc::new(a.intersect(b.as_ref())))
             .unwrap()
             .as_ref()
             .clone();
@@ -138,7 +156,7 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
                 ],
             })
         .map(Rc::new)
-        .collect();
+            .collect();
 
         unifier.push(VSA::Union(set));
     }
@@ -255,9 +273,9 @@ fn bottom_up<'a>(
                     strings_of_size(rhs_size),
                     locs_of_size(index_size)
                 ).map(|(lhs, rhs, index)| AST::App {
-                        fun: Fun::Find,
-                        args: vec![lhs.clone(), rhs.clone(), index.clone()],
-                    })
+                    fun: Fun::Find,
+                    args: vec![lhs.clone(), rhs.clone(), index.clone()],
+                })
             })});
 
         let slices = (1..(size)).flat_map(|i| {
@@ -274,46 +292,46 @@ fn bottom_up<'a>(
             .chain(concats)
             .chain(slices)
             .chain(finds)
+    }
+    .filter(|adj| {
+        let outs = inps.clone().map(|inp| adj.eval(inp)).collect::<Vec<_>>();
+        use std::collections::hash_map::Entry;
+
+        // dbg!(adj.size(), size);
+        // dbg!(adj.size(), size, bank.len());
+        if let Entry::Vacant(e) = cache.entry(outs.clone()) {
+            e.insert(Rc::new(VSA::singleton(adj.clone())));
+            true
+        } else {
+            false
         }
-        .filter(|adj| {
-            let outs = inps.clone().map(|inp| adj.eval(inp)).collect::<Vec<_>>();
-            use std::collections::hash_map::Entry;
+    })
+    .collect::<Vec<_>>();
 
-            // dbg!(adj.size(), size);
-            // dbg!(adj.size(), size, bank.len());
-            if let Entry::Vacant(e) = cache.entry(outs.clone()) {
-                e.insert(Rc::new(VSA::singleton(adj.clone())));
-                true
-            } else {
-                false
-            }
-        })
-        .collect::<Vec<_>>();
+    bank.size_mut(size).extend(adjs);
+    // dbg!(&bank);
+}
 
-        bank.size_mut(size).extend(adjs);
-        // dbg!(&bank);
-    }
+pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {
+    top_down(examples).unwrap()
+}
 
-    pub fn top_down_vsa(examples: &[(Lit, Lit)]) -> AST {
-        top_down(examples).unwrap()
-    }
-
-    pub fn examples() -> Vec<(Lit, Lit)> {
-        vec![
-            (
-                Lit::StringConst("I have 17 cookies".to_string()),
-                Lit::LocConst(9),
-                // Lit::StringConst("17".to_string()),
-            ),
-            (
-                Lit::StringConst("Give me at least 3 cookies".to_string()),
-                Lit::LocConst(18),
-                // Lit::StringConst("3".to_string()),
-            ),
-            (
-                Lit::StringConst("This number is 489".to_string()),
-                Lit::LocConst(18),
-                // Lit::StringConst("489".to_string()),
-            ),
-        ]
-    }
+pub fn examples() -> Vec<(Lit, Lit)> {
+    vec![
+        (
+            Lit::StringConst("I have 17 cookies".to_string()),
+            Lit::LocConst(9),
+            // Lit::StringConst("17".to_string()),
+        ),
+        (
+            Lit::StringConst("Give me at least 3 cookies".to_string()),
+            Lit::LocConst(18),
+            // Lit::StringConst("3".to_string()),
+        ),
+        (
+            Lit::StringConst("This number is 489".to_string()),
+            Lit::LocConst(18),
+            // Lit::StringConst("489".to_string()),
+        ),
+    ]
+}
