@@ -39,12 +39,13 @@ fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
         }).cloned().collect::<Vec<_>>()
     }).unwrap_or_default();
 
-    // TODO: smart way to identify prims?
-    // maybe look for common characters that aren't alphanum
+    // dbg!(&intersection);
+
     for prim in [
         Lit::Input,
         Lit::StringConst(" ".to_string()),
         Lit::StringConst(".".to_string()),
+        Lit::StringConst("\\s".to_string()),
         Lit::StringConst("\\d".to_string()),
         Lit::StringConst("\\b".to_string()),
         Lit::LocConst(0),
@@ -79,7 +80,7 @@ fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
                     }
                 }
 
-                learn(inp, out, &mut cache)
+                learn(inp, out, &mut cache, &mut HashSet::new())
             })
         // .inspect(|vsa| {
         //     println!("VSA: {:?}", vsa);
@@ -101,12 +102,19 @@ fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
 // TODO:
 // there's still an issue with cycles here
 // maybe still needs a queue
-fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
+fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut HashSet<Lit>) -> Rc<VSA> {
     let mut unifier = Vec::new();
     if let Some(res) = cache.get(out) {
         unifier.push(res.as_ref().clone());
         // return res.clone();
     }
+
+    // this helps test_json but breaks test_delete_between and test_duet_abbrev
+    // if visited.contains(out) {
+    //     return Rc::new(VSA::empty());
+    // }
+
+    visited.insert(out.clone());
 
     macro_rules! multi_match {
         ($v:expr, $($p:pat $(if $guard:expr)? => $res:expr),*) => {
@@ -127,6 +135,10 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
     //     unifier.push(VSA::singleton(AST::Lit(Lit::StringConst(".".to_string()))))
     // },
 
+    (Lit::LocConst(n), Lit::StringConst(inp_str)) if inp_str.len() == *n => {
+        unifier.push(VSA::singleton(AST::Lit(Lit::LocEnd)));
+    },
+
     (Lit::StringConst(s), Lit::StringConst(inp_str)) if inp_str.contains(s) => {
         let re = Regex::new(s).unwrap();
 
@@ -134,8 +146,8 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
             .map(|m| {
                 let start = m.start();
                 let end = m.end();
-                let start_vsa = learn(inp, &Lit::LocConst(start), cache);
-                let end_vsa = learn(inp, &Lit::LocConst(end), cache);
+                let start_vsa = learn(inp, &Lit::LocConst(start), cache, visited);
+                let end_vsa = learn(inp, &Lit::LocConst(end), cache, visited);
                 VSA::Join {
                     op: Fun::Slice,
                     children: vec![
@@ -168,11 +180,13 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
                         inp,
                         &Lit::StringConst(s[0..i].to_string()),
                         cache,
+                        visited,
                     ),
                     learn(
                         inp,
                         &Lit::StringConst(s[i..].to_string()),
                         cache,
+                        visited,
                     ),
                 ],
             })
@@ -299,7 +313,7 @@ fn bottom_up<'a>(
                 })
             })});
 
-        let slices = (1..(size)).flat_map(|i| {
+        let slices = (1..size).flat_map(|i| {
             let lhs_size = i;
             let rhs_size = size - i;
             iproduct!(locs_of_size(lhs_size), locs_of_size(rhs_size)).map(|(lhs, rhs)| AST::App {

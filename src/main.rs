@@ -16,34 +16,43 @@ fn main() {
     println!("run the tests with cargo test --release -- --nocapture");
 }
 
-macro_rules! test_duet_str {
+macro_rules! test_str {
     ($name:ident, $($inp:expr => $out:expr),+; $($test_inp:expr => $test_out:expr),+) => {
         #[test]
         fn $name() {
             use crate::vsa::Lit;
-            let res = top_down_vsa(&vec![
-                $(
-                    (
-                        Lit::StringConst($inp.to_string()),
-                        Lit::StringConst($out.to_string()),
-                    ),
-                )+
-            ]);
-            println!("{}, size = {}", res, res.size());
 
-            $(
-                assert_eq!(
-                    res.eval(&Lit::StringConst($test_inp.to_string())),
-                    Lit::StringConst($test_out.to_string())
-                );
-            )+
+            let (tx, rx) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                let res = top_down_vsa(&vec![
+                    $(
+                        (
+                            Lit::StringConst($inp.to_string()),
+                            Lit::StringConst($out.to_string()),
+                        ),
+                    )+
+                ]);
+                println!("{}, size = {}", res, res.size());
+
+                $(
+                    assert_eq!(
+                        res.eval(&Lit::StringConst($test_inp.to_string())),
+                        Lit::StringConst($test_out.to_string())
+                    );
+                )+
+                tx.send(()).unwrap();
+            });
+
+            if let Err(_) = rx.recv_timeout(std::time::Duration::from_secs(12)) {
+                panic!("timeout");
+            }
         }
     };
 }
 
 // Run these with cargo test --release -- --nocapture to see the output
 
-test_duet_str!(
+test_str!(
     test_duet_date,
     "01/15/2013" => "01/2013",
     "03/07/2011" => "03/2011",
@@ -53,7 +62,7 @@ test_duet_str!(
     "09/02/07" => "09/07"
 );
 
-test_duet_str!(
+test_str!(
     test_duet_numbers,
     "I have 17 cookies" => "17",
     "Give me at least 3 cookies" => "3",
@@ -64,7 +73,7 @@ test_duet_str!(
     "Number at the end 74" => "74"
 );
 
-test_duet_str!(
+test_str!(
     test_duet_multiple_numbers,
     "This string has more than 1 number or 2 it has 3" => "2",
     "i want 56 the 74 second" => "74",
@@ -75,7 +84,7 @@ test_duet_str!(
     "testcases 33 are 45 hard" => "45"
 );
 
-test_duet_str!(
+test_str!(
     test_duet_abbrev,
     "First Last" => "F.L.",
     "Abc Defgh" => "A.D.",
@@ -84,7 +93,7 @@ test_duet_str!(
     "Another Name" => "A.N."
 );
 
-test_duet_str!(
+test_str!(
     test_duet_model_no,
     "Tire Pressure ABC123873 Monitor" => "ABC123873",
     " Air conditioner GHF211 maintenance" => "GHF211";
@@ -92,7 +101,7 @@ test_duet_str!(
     " Oil Life ABC849999999021 gauge" => "ABC849999999021"
 );
 
-test_duet_str!(
+test_str!(
     test_duet_url,
     "http://www.example.com" => "example",
     "https://www.apple.com/uk/mac" => "apple";
@@ -117,7 +126,7 @@ test_duet_str!(
 // to switch from normal witness to fancier cut
 //
 // What's the difference between a normal witness function and a cut?
-test_duet_str!(
+test_str!(
     test_delete_between,
     "short /no/ line" => "short  line",
     "aa/aa/aa" => "aaaa";
@@ -125,7 +134,7 @@ test_duet_str!(
     "remove /this/" => "remove "
 );
 
-test_duet_str!(
+test_str!(
     test_duet_money,
     "USD.EUR<IDEALPRO,CASH,EUR>" => "EUR",
     "USD.EUR<IDEALPRO,CASH,USD>" => "USD";
@@ -133,4 +142,13 @@ test_duet_str!(
     "KOR.JPN<IDEALPRO,CASH,WON>" => "WON",
     "USD.EUR<IDEALPRO,CASH,JPY>" => "JPY",
     "USD.KOR<IDEALPRO,CASH,GBP>" => "GBP"
+);
+
+test_str!(
+    test_json,
+    "one first example" => "first example",
+    "three third example" => "third example";
+
+    "two second example" => "second example",
+    "four fourth example" => "fourth example"
 );
