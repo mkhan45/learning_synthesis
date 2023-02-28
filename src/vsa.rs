@@ -100,7 +100,7 @@ where
 
             #[rustfmt::skip]
             (VSA::Join { op: l_op, .. }, VSA::Join { op: r_op, .. })
-                if l_op != r_op => VSA::Leaf(HashSet::with_capacity(0)),
+                if l_op != r_op => VSA::empty(),
 
             #[rustfmt::skip]
             (VSA::Join { op, children: l_children }, VSA::Join { op: _, children: r_children })
@@ -114,7 +114,7 @@ where
                 => VSA::Leaf(s.iter().filter(|pj| {
                     match pj.as_ref() {
                         AST::App { fun, args } if fun == op =>
-                            args.iter().all(|arg| children.iter().any(|cs| cs.clone().contains(arg))),
+                            args.iter().zip(children).all(|(arg, vsa)| vsa.contains(arg)),
                         _ => false
                     }
                 }).cloned().collect()),

@@ -16,6 +16,8 @@ type AST = crate::vsa::AST<Lit, Fun>;
 fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
     let mut bank = Bank::new();
     let mut all_cache = HashMap::new();
+    // TODO: smart way to identify prims?
+    // maybe look for common characters that aren't alphanum
     for prim in [
         Lit::Input,
         Lit::StringConst(" ".to_string()),
