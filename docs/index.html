@@ -65,7 +65,7 @@
             if (inps.length == 0) {
                 return;
             }
-            const worker = new Worker("/pkg/synthesizer.js");
+            const worker = new Worker("./pkg/synthesizer.js");
             worker.postMessage({inps, outs, tests});
             const result = await Promise.race([
                 new Promise((resolve) =>
