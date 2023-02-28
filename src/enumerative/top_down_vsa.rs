@@ -24,6 +24,7 @@ fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
         Lit::StringConst(".".to_string()),
         Lit::StringConst("\\d".to_string()),
         Lit::StringConst("\\b".to_string()),
+        Lit::StringConst("/".to_string()),
         Lit::LocConst(0),
         Lit::LocConst(1),
         Lit::LocEnd,

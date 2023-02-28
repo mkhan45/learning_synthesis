@@ -17,22 +17,19 @@ fn main() {
 
     let res = top_down_vsa(&vec![
         (
-            Lit::StringConst("short/ no / line".to_string()), 
-             Lit::StringConst("short line".to_string())
-         ),
-        // (
-        //     Lit::StringConst("remove /this/".to_string()), 
-        //      Lit::StringConst("remove ".to_string())
-        //  ),
+            Lit::StringConst("short /no/ line".to_string()), 
+            Lit::StringConst("short  line".to_string())
+        ),
         (
             Lit::StringConst("aa/aa/aa".to_string()), 
-             Lit::StringConst("aaaa".to_string())
-         )
+            Lit::StringConst("aaaa".to_string())
+        )
     ]);
 
     // 🙃
     // intersection is broken?
     println!("{:?}", res.eval(&Lit::StringConst("short/ no / line".to_string())));
+    println!("{:?}", res.eval(&Lit::StringConst("remove /this/".to_string())));
     println!("{:?}", res.eval(&Lit::StringConst("aa/aa/aa".to_string())));
     println!("{res}");
 }
