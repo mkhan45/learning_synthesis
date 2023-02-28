@@ -73,8 +73,8 @@
           worker.addEventListener(
             "message",
             ({data}) => {
-              resolve(data);
               finished = true;
+              resolve(data);
             },
             {
               once: true,
