@@ -1,6 +1,9 @@
+#![feature(io_error_other)]
+#![feature(local_key_cell_methods)]
+#![feature(is_some_and)]
+
 use std::str::FromStr;
 
-use lang::StringExpr;
 use wasm_bindgen::prelude::*;
 
 pub mod bank;
@@ -8,6 +11,7 @@ pub mod egg_lang;
 pub mod enumerative;
 pub mod lang;
 pub mod vsa;
+mod test;
 
 use enumerative::duet;
 use js_sys::JsString;

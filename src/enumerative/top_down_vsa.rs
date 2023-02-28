@@ -64,7 +64,7 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
     let mut size = 1;
     let inps = examples.iter().map(|(inp, _)| inp);
 
-    while size <= 7 {
+    while size <= 5 {
         bottom_up(inps.clone(), size, &mut all_cache, &mut bank);
         // dbg!(bank.total_entries());
         let res = examples

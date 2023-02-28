@@ -42,21 +42,6 @@
                 return;
             }
 
-            /*
-            let inps = ["First Last"];
-            let outs = ["First"];
-            let tests = inps;
-
-            let result = synthesize(inps, outs, tests);
-            if (!result['error']) {
-                let program = result.get('program');
-                let results = result.get('test_results');
-                console.log(program, results);
-            } else {
-                console.log("error :(");
-            }
-            */
-
             let tab = document.querySelector('#tab');
             let inps = [];
             let outs = [];
@@ -82,7 +67,7 @@
             }
 
             let result = synthesize(inps, outs, tests);
-            if (!result['error']) {
+            if (!result.get('error')) {
                 let program = result.get('program');
                 let results = result.get('test_results');
                 document.querySelector('#program').innerHTML = program;
@@ -91,6 +76,7 @@
                     row.cells[1].childNodes[0].value = results[i];
                 }
             } else {
+                document.querySelector('#program').innerHTML = "not found";
                 console.log("error :(");
             }
         }

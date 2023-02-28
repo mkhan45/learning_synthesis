@@ -1,16 +1,9 @@
-#![feature(io_error_other)]
-#![feature(local_key_cell_methods)]
-#![feature(is_some_and)]
-fn main() {
-    println!("run the tests with cargo test --release -- --nocapture");
-}
-
 macro_rules! test_str {
     ($name:ident, $($inp:expr => $out:expr),+; $($test_inp:expr => $test_out:expr),+) => {
         #[test]
         fn $name() {
-            use synthesizer::vsa::Lit;
-            use synthesizer::enumerative::top_down_vsa;
+            use crate::vsa::Lit;
+            use crate::enumerative::top_down_vsa;
 
             let (tx, rx) = std::sync::mpsc::channel();
             std::thread::spawn(move || {
