@@ -4,8 +4,6 @@
 
 use enumerative::top_down_vsa;
 
-use crate::lang::StringExpr;
-
 pub mod bank;
 pub mod egg_lang;
 pub mod enumerative;
@@ -15,23 +13,7 @@ pub mod vsa;
 fn main() {
     use crate::vsa::Lit;
 
-    let res = top_down_vsa(&vec![
-        (
-            Lit::StringConst("short /no/ line".to_string()), 
-            Lit::StringConst("short  line".to_string())
-        ),
-        (
-            Lit::StringConst("aa/aa/aa".to_string()), 
-            Lit::StringConst("aaaa".to_string())
-        )
-    ]);
-
-    // 🙃
-    // intersection is broken?
-    println!("{:?}", res.eval(&Lit::StringConst("short/ no / line".to_string())));
-    println!("{:?}", res.eval(&Lit::StringConst("remove /this/".to_string())));
-    println!("{:?}", res.eval(&Lit::StringConst("aa/aa/aa".to_string())));
-    println!("{res}");
+    println!("run the tests with cargo test --release -- --nocapture");
 }
 
 macro_rules! test_duet_str {
@@ -80,6 +62,17 @@ test_duet_str!(
     "A string with the number 54234564 in the middle" => "54234564",
     "36" => "36",
     "Number at the end 74" => "74"
+);
+
+test_duet_str!(
+    test_duet_multiple_numbers,
+    "This string has more than 1 number or 2 it has 3" => "2",
+    "i want 56 the 74 second" => "74",
+    "this one has 3 digit number at the end 698" => "698",
+    "74 55 66" => "55";
+
+    "aaaaaaaaaaaa 54 36 97 aaaaa" => "36",
+    "testcases 33 are 45 hard" => "45"
 );
 
 test_duet_str!(

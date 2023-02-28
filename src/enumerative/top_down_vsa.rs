@@ -34,7 +34,7 @@ fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
         s1.iter().filter(|c| {
             char_sets.clone().all(|s2| s2.contains(c))
         }).cloned().collect::<Vec<_>>()
-    }).unwrap_or(Vec::new());
+    }).unwrap_or_default();
 
     // TODO: smart way to identify prims?
     // maybe look for common characters that aren't alphanum
@@ -317,7 +317,7 @@ fn bottom_up<'a>(
 
         // dbg!(adj.size(), size);
         // dbg!(adj.size(), size, bank.len());
-        if let Entry::Vacant(e) = cache.entry(outs.clone()) {
+        if let Entry::Vacant(e) = cache.entry(outs) {
             e.insert(Rc::new(VSA::singleton(adj.clone())));
             true
         } else {

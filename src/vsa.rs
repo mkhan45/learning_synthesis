@@ -146,7 +146,7 @@ where
         match self {
             VSA::Leaf(s) => s
                 .iter()
-                .sorted_by_key(|ast| rank(ast.clone().as_ref()))
+                .sorted_by_key(|ast| rank(ast.as_ref()))
                 .next()
                 .map(|x| x.as_ref())
                 .cloned(),
