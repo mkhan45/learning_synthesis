@@ -1,155 +1,163 @@
 <html>
-    <head>
-        <title>Synthesis</title>
-    </head>
-    <body>
-        <h1>FlashFill--</h1>
-        <table id="tab">
-            <tr>
-                <th>Input</th>
-                <th>Output</th>
-            </tr>
-            <tr>
-                <td><input type="text" /></td>
-                <td><input type="text" /></td>
-            </tr>
-            <tr>
-                <td><input type="text" /></td>
-                <td><input type="text" /></td>
-            </tr>
-            <tr>
-                <td><input type="text" /></td>
-                <td><input type="text" /></td>
-            </tr>
-            <tr>
-                <td><input type="text" /></td>
-                <td><input type="text" /></td>
-            </tr>
-            <tr>
-                <td><input type="text" /></td>
-                <td><input type="text" /></td>
-            </tr>
-        </table>
-        <div>Program: <code id="program"></code></div>
-        <button id="run">Run</button>
-        <div id="examples">
-            <h2>Examples</h2>
-        </div>
-    </body>
-    <script>
-        async function run() {
-            if (document.querySelector("#run").onclick == undefined) {
-                document.querySelector("#run").onclick = run;
-                return;
-            }
-            let tab = document.querySelector("#tab");
-            let inps = [];
-            let outs = [];
-            let tests = [];
-            for (let i = 0; i < tab.rows.length; i += 1) {
-                let row = tab.rows[i];
-                let inp = row.cells[0].childNodes[0].value;
-                let out = row.cells[1].childNodes[0].value;
-                if (inp == "" || inp == undefined) {
-                    continue;
-                }
-
-                tests.push(inp);
-                if (out != "") {
-                    inps.push(inp);
-                    outs.push(out);
-                }
-            }
-            console.log(inps, outs, tests);
-
-            if (inps.length == 0) {
-                return;
-            }
-            const worker = new Worker("./pkg/synthesizer.js");
-            worker.postMessage({inps, outs, tests});
-            const result = await Promise.race([
-                new Promise((resolve) =>
-                    worker.addEventListener(
-                        "message",
-                        ({data}) => {
-                            resolve(data);
-                        },
-                        {
-                            once: true,
-                        }
-                    )
-                ),
-                new Promise((resolve) => {
-                    setTimeout(() => {
-                        console.log("timeout");
-                        resolve({error: true});
-                    }, 10_000);
-                }),
-            ]);
-            worker.terminate();
-
-            if (!result.error) {
-                let program = result.get("program");
-                let results = result.get("test_results");
-                document.querySelector("#program").innerHTML = program;
-                for (let i = 0; i < results.length; i += 1) {
-                    let row = tab.rows[i + 1];
-                    row.cells[1].childNodes[0].value = results[i];
-                }
-            } else {
-                console.log("error :(");
-                document.querySelector("#program").innerHTML = "An error occured :(";
-            }
+  <head>
+    <title>Synthesis</title>
+  </head>
+  <body>
+    <h1>FlashFill--</h1>
+    <table id="tab">
+      <tr>
+        <th>Input</th>
+        <th>Output</th>
+      </tr>
+      <tr>
+        <td><input type="text" /></td>
+        <td><input type="text" /></td>
+      </tr>
+      <tr>
+        <td><input type="text" /></td>
+        <td><input type="text" /></td>
+      </tr>
+      <tr>
+        <td><input type="text" /></td>
+        <td><input type="text" /></td>
+      </tr>
+      <tr>
+        <td><input type="text" /></td>
+        <td><input type="text" /></td>
+      </tr>
+      <tr>
+        <td><input type="text" /></td>
+        <td><input type="text" /></td>
+      </tr>
+    </table>
+    <div>Program: <code id="program"></code></div>
+    <button id="run">Run</button>
+    <div id="examples">
+      <h2>Examples</h2>
+    </div>
+  </body>
+  <script>
+    async function run() {
+      if (document.querySelector("#run").onclick == undefined) {
+        document.querySelector("#run").onclick = run;
+        return;
+      }
+      let tab = document.querySelector("#tab");
+      let inps = [];
+      let outs = [];
+      let tests = [];
+      for (let i = 0; i < tab.rows.length; i += 1) {
+        let row = tab.rows[i];
+        let inp = row.cells[0].childNodes[0].value;
+        let out = row.cells[1].childNodes[0].value;
+        if (inp == "" || inp == undefined) {
+          continue;
         }
 
-        run();
-
-        let ex_div = document.querySelector('#examples');
-        let examples = [
-            {
-                name: "URLs",
-                inps: [
-                    "http://www.example.com",
-                    "https://www.apple.com/uk/mac",
-                    "https://www.google.com",
-                    "www.mikail-khan.com"
-                ],
-                outs: ["example", "apple", "", ""]
-            },
-            {
-                name: "Abbreviations",
-                inps: [
-                    "First Last",
-                    "Hi Aref",
-                    "Bed Time",
-                    "Another Name",
-                    "Bhavesh Pareek"
-                ],
-                outs: ["F.L.", "", "", "", ""]
-            },
-            {
-                name: "Numbers",
-                inps: [
-                    "I have 17 cookies",
-                    "Give me at least 3 cookies",
-                    "This number is 489",
-                    "A string with the number 54234564 in the middle",
-                    "36"
-                ],
-                outs: ["17", "3", "489", "", ""]
-            },
-        ];
-
-        for (let example of examples) {
-            let btn = document.createElement('button');
-            btn.innerHTML = example.name;
-            btn.onclick = () => {
-                for (let i = 0; i < example.inps.length; i += 1) {
-                    tab.rows[i+1].cells[0].childNodes[0].value = example.inps[i];
-                    tab.rows[i+1].cells[1].childNodes[0].value = example.outs[i];
-                }
-            };
-            ex_div.appendChild(btn);
+        tests.push(inp);
+        if (out != "") {
+          inps.push(inp);
+          outs.push(out);
         }
-    </script>
+      }
+      console.log(inps, outs, tests);
+
+      if (inps.length == 0) {
+        return;
+      }
+      const worker = new Worker("./pkg/synthesizer.js");
+      worker.postMessage({inps, outs, tests});
+      let finished = false;
+      const result = await Promise.race([
+        new Promise((resolve) =>
+          worker.addEventListener(
+            "message",
+            ({data}) => {
+              resolve(data);
+              finished = true;
+            },
+            {
+              once: true,
+            }
+          )
+        ),
+        new Promise((resolve) => {
+          setTimeout(() => {
+            if (finished) return;
+            console.log("timeout");
+            resolve({error: true});
+          }, 10_000);
+        }),
+      ]);
+      worker.terminate();
+
+      if (!result.error) {
+        let program = result.get("program");
+        let results = result.get("test_results");
+        document.querySelector("#program").innerHTML = program;
+        for (let i = 0; i < results.length; i += 1) {
+          let row = tab.rows[i + 1];
+          row.cells[1].childNodes[0].value = results[i];
+        }
+      } else {
+        console.log("error :(");
+        document.querySelector("#program").innerHTML = "An error occured :(";
+      }
+    }
+
+    run();
+
+    let ex_div = document.querySelector("#examples");
+    let examples = [
+      {
+        name: "URLs",
+        inps: [
+          "http://www.example.com",
+          "https://www.apple.com/uk/mac",
+          "https://www.google.com",
+          "www.mikail-khan.com",
+        ],
+        outs: ["example", "apple", "", ""],
+      },
+      {
+        name: "Abbreviations",
+        inps: [
+          "First Last",
+          "Hi Aref",
+          "Bed Time",
+          "Another Name",
+          "Bhavesh Pareek",
+        ],
+        outs: ["F.L.", "", "", "", ""],
+      },
+      {
+        name: "Numbers",
+        inps: [
+          "I have 17 cookies",
+          "Give me at least 3 cookies",
+          "This number is 489",
+          "A string with the number 54234564 in the middle",
+          "36",
+        ],
+        outs: ["17", "3", "489", "", ""],
+      },
+    ];
+
+    for (let example of examples) {
+      let btn = document.createElement("button");
+      btn.innerHTML = example.name;
+      btn.onclick = () => {
+        const rows = Array.from(tab.rows).slice(1);
+        rows.forEach((x) => {
+          x.cells[0].childNodes[0].value = "";
+          x.cells[1].childNodes[0].value = "";
+        });
+        for (let i = 0; i < example.inps.length; i += 1) {
+          tab.rows[i + 1].cells[0].childNodes[0].value = example.inps[i];
+          tab.rows[i + 1].cells[1].childNodes[0].value = example.outs[i];
+        }
+      };
+      ex_div.appendChild(btn);
+    }
+  </script>
 </html>
