@@ -1,18 +1,11 @@
 #![feature(io_error_other)]
 #![feature(local_key_cell_methods)]
 #![feature(is_some_and)]
+use synthesizer::vsa::Lit;
+use synthesizer::enumerative::top_down_vsa;
 
-use enumerative::top_down_vsa;
-
-pub mod bank;
-pub mod egg_lang;
-pub mod enumerative;
-pub mod lang;
-pub mod vsa;
 
 fn main() {
-    use crate::vsa::Lit;
-
     println!("run the tests with cargo test --release -- --nocapture");
 }
 
@@ -20,8 +13,6 @@ macro_rules! test_str {
     ($name:ident, $($inp:expr => $out:expr),+; $($test_inp:expr => $test_out:expr),+) => {
         #[test]
         fn $name() {
-            use crate::vsa::Lit;
-
             let (tx, rx) = std::sync::mpsc::channel();
             std::thread::spawn(move || {
                 let res = top_down_vsa(&vec![

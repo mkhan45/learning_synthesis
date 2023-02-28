@@ -15,3 +15,4 @@ pub use combo::combo_synth;
 
 mod top_down_vsa;
 pub use top_down_vsa::top_down_vsa;
+pub use top_down_vsa::top_down as duet;

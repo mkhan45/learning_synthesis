@@ -14,7 +14,7 @@ type AST = crate::vsa::AST<Lit, Fun>;
 // TODO:
 // - intersection broken?
 
-fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
+pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
     let mut bank = Bank::new();
     let mut all_cache = HashMap::new();
 
