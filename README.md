@@ -18,10 +18,13 @@ test_str!(
 More examples in tests.rs
 ```
 
-Roughly following these to learn synthesis
-- <https://github.com/nadia-polikarpova/cse291-program-synthesis>
-- <https://people.csail.mit.edu/asolar/SynthesisCourse/index.htm>
+Roughly following these to write a string transformation synthesizer
+- <https://github.com/nadia-polikarpova/cse291-program-synthesis> and <https://people.csail.mit.edu/asolar/SynthesisCourse/index.htm>
+    - To learn the general concepts
 - <https://www.microsoft.com/en-us/research/wp-content/uploads/2016/12/oopsla15-pbe.pdf>
+    - To implement a VSA
+- <https://dl.acm.org/doi/10.1145/3434335>
+    - For the algorithm
 
 Goals:
 - [X] Bottom Up
@@ -38,5 +41,6 @@ Goals:
     - parallelizing somehow
     - might not because wasm threads are hard
 - [ ] Conditionals?
+    - and other extensions to the language
 - [ ] Middle Out?
   - https://dl.acm.org/doi/pdf/10.1145/3571226
