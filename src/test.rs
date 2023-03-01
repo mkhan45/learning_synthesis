@@ -143,3 +143,14 @@ test_str!(
 
     "B" => "B World"
 );
+
+test_str!(
+    test_country_abbr,
+    "Mining US" => "Mining",
+    "Soybean Farming CAN" => "Soybean Farming",
+    "Soybean Farming" => "Soybean Farming";
+
+    "Mining" => "Mining",
+    "Oil Extraction US" => "Oil Extraction",
+    "Quarrying EU" => "Quarrying"
+);
