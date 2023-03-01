@@ -154,10 +154,21 @@ test_str!(
 test_str!(
     test_country_abbr,
     "Mining US" => "Mining",
-    "Soybean Farming CAN" => "Soybean Farming",
-    "Soybean Farming" => "Soybean Farming";
+    "Soybean Farming CAN" => "Soybean Farming";
 
     "Mining" => "Mining",
+    "Soybean Farming" => "Soybean Farming",
     "Oil Extraction US" => "Oil Extraction",
     "Quarrying EU" => "Quarrying"
+);
+
+// Note: this test doesnt work with multiple numbers before the .
+test_str!(
+    test_version_no,
+    "Red Hat Enterprise AS 4 <3.5-78.0.13.ELlargesmp>" => "3.5",
+    "Microsoft Windows XP Win2008R 6.1.7601" => "6.1";
+
+    "Linux Linux 2.6 Linux" => "2.6",
+    "AIX 5.1" => "5.1",
+    "VMware ESX Server 3.5.0 build-110268" => "3.5"
 );

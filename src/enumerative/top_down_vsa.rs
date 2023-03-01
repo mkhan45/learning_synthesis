@@ -1,18 +1,36 @@
 use std::{
     collections::{HashMap, HashSet},
-    rc::Rc,
+    rc::Rc, num::NonZeroUsize, sync::RwLock,
 };
 
 use itertools::iproduct;
 use regex::Regex;
+use lru::LruCache;
 
 use crate::{vsa::{Fun, Lit}, bank::Bank};
+
+use lazy_static::lazy_static;
 
 type VSA = crate::vsa::VSA<Lit, Fun>;
 type AST = crate::vsa::AST<Lit, Fun>;
 
+lazy_static! {
+    // TODO: figure out ideal cache size
+    pub static ref CACHE: RwLock<LruCache<String, Regex>> = RwLock::new(LruCache::new(NonZeroUsize::new(2000).unwrap()));
+}
+
+pub fn regex(s: &String) -> Regex {
+    let mut cache_writer = CACHE.write().unwrap();
+    if cache_writer.contains(s) {
+        cache_writer.get(s).unwrap().clone()
+    } else {
+        cache_writer.push(s.clone(), Regex::new(s).unwrap());
+        cache_writer.get(s).unwrap().clone()
+    }
+}
+
 // TODO:
-// - intersection broken?
+// add a substitute function
 
 pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
     let mut bank = Bank::new();
@@ -28,7 +46,7 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
                         '.' => Lit::StringConst("\\.".to_string()),
                         _ => Lit::StringConst(c.to_string()),
                     })
-                    .collect::<HashSet<_>>()
+                .collect::<HashSet<_>>()
             },
             _ => panic!(),
         }
@@ -159,7 +177,7 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
     },
 
     (Lit::StringConst(s), Lit::StringConst(inp_str)) if s.contains(inp_str) => {
-        let re = Regex::new(inp_str).unwrap();
+        let re = regex(inp_str);
 
         re.find_iter(s)
             .map(|m| {
@@ -187,7 +205,7 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
         },
 
         (Lit::StringConst(s), Lit::StringConst(inp_str)) if inp_str.contains(s) => {
-            let re = Regex::new(s).unwrap();
+            let re = regex(s);
 
             re.find_iter(inp_str)
                 .map(|m| {
@@ -238,10 +256,10 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
                         ],
                     })
                 .map(Rc::new)
-                .collect();
+                    .collect();
 
                 unifier.push(VSA::Union(set));
-        }
+            }
 
     // TODO: figure out the index
     // (Lit::LocConst(n), Lit::StringConst(s)) if s.chars().nth(*n).is_some_and(|ch| ch == ' ') => {
