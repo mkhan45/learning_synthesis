@@ -17,6 +17,7 @@ type AST = crate::vsa::AST<Lit, Fun>;
 lazy_static! {
     // TODO: figure out ideal cache size
     pub static ref CACHE: RwLock<LruCache<String, Regex>> = RwLock::new(LruCache::new(NonZeroUsize::new(2000).unwrap()));
+    pub static ref EMPTY_REGEX: Regex = Regex::new(".").unwrap();
 }
 
 pub fn regex(s: &String) -> Regex {
@@ -24,7 +25,8 @@ pub fn regex(s: &String) -> Regex {
     if cache_writer.contains(s) {
         cache_writer.get(s).unwrap().clone()
     } else {
-        cache_writer.push(s.clone(), Regex::new(s).unwrap());
+        // cache_writer.push(s.clone(), Regex::new(s).unwrap_or(regex(&".".to_string())));
+        cache_writer.push(s.clone(), Regex::new(s).unwrap_or(EMPTY_REGEX.clone()));
         cache_writer.get(s).unwrap().clone()
     }
 }
@@ -68,7 +70,6 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
         Lit::StringConst("".to_string()),
         Lit::StringConst(" ".to_string()),
         Lit::StringConst(".".to_string()),
-        Lit::StringConst("\\s".to_string()),
         Lit::StringConst("\\d".to_string()),
         Lit::StringConst("\\b".to_string()),
         Lit::StringConst("[a-z]".to_string()),
@@ -89,7 +90,7 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
     let mut size = 1;
     let inps = examples.iter().map(|(inp, _)| inp);
 
-    while size <= 5 {
+    while size <= 6 {
         bottom_up(inps.clone(), size, &mut all_cache, &mut bank);
         // dbg!(bank.total_entries());
         let mut ex_vsas = examples
@@ -258,7 +259,7 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
                         ],
                     })
                 .map(Rc::new)
-                    .collect();
+                .collect();
 
                 unifier.push(VSA::Union(set));
             }
@@ -374,10 +375,16 @@ fn bottom_up<'a>(
                     strings_of_size(lhs_size),
                     strings_of_size(rhs_size),
                     locs_of_size(index_size)
-                ).map(|(lhs, rhs, index)| AST::App {
-                    fun: Fun::Find,
-                    args: vec![lhs.clone(), rhs.clone(), index.clone()],
-                })
+                ).flat_map(|(lhs, rhs, index)| [
+                    AST::App {
+                        fun: Fun::Find,
+                        args: vec![lhs.clone(), rhs.clone(), index.clone()],
+                    },
+                    AST::App {
+                        fun: Fun::FindEnd,
+                        args: vec![lhs.clone(), rhs.clone(), index.clone()],
+                    }
+                ])
             })});
 
         let slices = (1..size).flat_map(|i| {
@@ -389,11 +396,23 @@ fn bottom_up<'a>(
             })
         });
 
+        let re_groups = (1..size-1).flat_map(|size| {
+            strings_of_size(size).map(|e| {
+                AST::App {
+                    fun: Fun::Concat,
+                    args: vec![e.clone(), AST::Lit(Lit::StringConst("+".to_string()))],
+                }
+            })
+        });
+        // dbg!(re_groups.clone().collect::<Vec<_>>());
+
         loc_adds
             .chain(loc_subs)
-            .chain(concats)
+            .chain(concats) // TODO: separate regexes from strings, then we only have to bottom up
+                            // concat regexes
             .chain(slices)
             .chain(finds)
+            .chain(re_groups)
     }
     .filter(|adj| {
         let outs = inps.clone().map(|inp| adj.eval(inp)).collect::<Vec<_>>();

@@ -230,6 +230,7 @@ where
 pub enum Fun {
     Concat,
     Find,
+    FindEnd,
     Slice,
     LocAdd,
     LocSub,
@@ -303,6 +304,25 @@ impl Language<Lit> for Fun {
                     let re = regex(inner);
                     let mut found = re.find_iter(outer)
                         .map(|m| Lit::LocConst(m.start()));
+
+                    found
+                        .nth(i)
+                        .unwrap_or(Lit::LocEnd)
+                }
+                _ => panic!(),
+            },
+            Fun::FindEnd => match args {
+                [Lit::StringConst(outer), Lit::StringConst(inner), index] => {
+                    let i = match index {
+                        Lit::LocConst(i) => *i,
+                        Lit::LocEnd => outer.len(),
+                        _ => panic!(),
+                    };
+
+                    use crate::enumerative::regex;
+                    let re = regex(inner);
+                    let mut found = re.find_iter(outer)
+                        .map(|m| Lit::LocConst(m.end()));
 
                     found
                         .nth(i)
@@ -410,6 +430,13 @@ impl Display for AST<Lit, Fun> {
             } => {
                 let (fst, snd, i) = (args[0].clone(), args[1].clone(), args[2].clone());
                 write!(f, "{fst}.find({snd}, {i})")
+            }
+            AST::App {
+                fun: Fun::FindEnd,
+                args,
+            } => {
+                let (fst, snd, i) = (args[0].clone(), args[1].clone(), args[2].clone());
+                write!(f, "{fst}.find_end({snd}, {i})")
             }
             AST::App {
                 fun: Fun::Slice,
