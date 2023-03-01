@@ -68,7 +68,7 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
     while size <= 5 {
         bottom_up(inps.clone(), size, &mut all_cache, &mut bank);
         // dbg!(bank.total_entries());
-        let res = examples
+        let mut ex_vsas = examples
             .iter()
             .enumerate()
             .map(|(i, (inp, out))| {
@@ -82,14 +82,19 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
                 }
 
                 learn(inp, out, &mut cache, &mut HashSet::new())
-            })
-        // .inspect(|vsa| {
-        //     println!("VSA: {:?}", vsa);
-        // })
-        .reduce(|a, b| Rc::new(a.intersect(b.as_ref())))
-            .unwrap()
-            .as_ref()
-            .clone();
+            });
+
+        let mut res = ex_vsas.next().unwrap();
+
+        for vsa in ex_vsas {
+            if let Some(prog) = res.pick_one() {
+                if examples.iter().all(|(inp, out)| prog.eval(inp) == *out) {
+                    break;
+                };
+            }
+
+            res = Rc::new(res.intersect(vsa.as_ref()));
+        }
 
         match res.pick_best(|ast| ast.cost(Fun::cost)) {
             res@Some(_) => return res,
