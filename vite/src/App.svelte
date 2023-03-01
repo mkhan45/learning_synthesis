@@ -157,4 +157,10 @@
     code {
         font-size: 1.175em;
     }
+
+    @media (prefers-color-scheme: light) {
+        p {
+            background: #ffffff;
+        }
+    }
 </style>
