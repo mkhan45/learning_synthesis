@@ -41,6 +41,8 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
 
     // dbg!(&intersection);
 
+    // TODO:
+    // a cache that is only applied to regexes
     for prim in [
         Lit::Input,
         Lit::StringConst("".to_string()),
@@ -49,6 +51,8 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
         Lit::StringConst("\\s".to_string()),
         Lit::StringConst("\\d".to_string()),
         Lit::StringConst("\\b".to_string()),
+        Lit::StringConst("[a-z]".to_string()),
+        Lit::StringConst("[A-Z]".to_string()),
         Lit::LocConst(0),
         Lit::LocConst(1),
         Lit::LocEnd,
