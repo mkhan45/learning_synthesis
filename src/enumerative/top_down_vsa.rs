@@ -86,6 +86,9 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
 
         let mut res = ex_vsas.next().unwrap();
 
+        // TODO:
+        // instead of pick_best, pick the best 10, and then
+        // check if it works on all examples
         for vsa in ex_vsas {
             if let Some(prog) = res.pick_one() {
                 if examples.iter().all(|(inp, out)| prog.eval(inp) == *out) {
