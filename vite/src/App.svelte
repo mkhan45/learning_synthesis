@@ -1,10 +1,7 @@
 <script lang="ts">
   /* import * as _ from "lodash" */
-
-  type IO = {
-    in: string,
-    out: string | null,
-  };
+  import type { IO } from "./util.ts";
+  import { builtin_examples } from "./util.ts";
 
   let examples: Array<IO> = [{in: "", out: null}];
   let program: string = "None";
@@ -18,42 +15,9 @@
   }
 
   function setExamples(exs: Array<IO>) {
+    program = "None";
     examples = exs;
   }
-
-  const builtin_examples: Array<{name: string, io: Array<IO>}> = [
-      {
-        name: "URLs",
-        io: [
-            {in: "http://www.example.com", out: "example"},
-            {in: "https://www.apple.com/uk/mac", out: "apple"},
-            {in: "https://www.google.com", out: null},
-            {in: "www.mikail-khan.com", out: null},
-        ]
-      },
-      {
-        name: "Abbreviations",
-        io: [
-            {in: "First Last", out: "F.L."},
-            {in: "Hi Aref", out: "H.A."},
-            {in: "Bed Time", out: null},
-            {in: "Another Name", out: null},
-            {in: "Bhavesh Pareek", out: null},
-            {in: "Saad Sharief", out: null},
-        ]
-      },
-      {
-        name: "Numbers",
-        io: [
-            {in: "I have 17 cookies", out: "17"},
-            {in: "Give me at least 3 cookies", out: "3"},
-            {in: "This number is 489", out: "489"},
-            {in: "A string with the number 54234564 in the middle", out: null},
-            {in: "36", out: null},
-            {in: "Another 456432 string", out: ""},
-        ]
-      },
-  ];
 
   async function run() {
     program = "Synthesizing...";
@@ -113,6 +77,8 @@
       // document.querySelector("#program").innerHTML = "An error occured :(";
     }
   }
+
+  setExamples(builtin_examples[1].io);
 </script>
 
 <main>
@@ -140,6 +106,19 @@
     {#each builtin_examples as {name, io}}
         <button on:click={() => setExamples(io)}>{name}</button>
     {/each}
+
+    <h2>Info</h2>
+    <p>
+        The synthesizer is written in Rust and compiled to WebAssembly, and it
+        runs in a Web Worker with a timeout of 15 seconds. Because of that,
+        some of the examples might work on your laptop but not on your phone.
+        All of these examples work on my laptop, but numbers and remove between
+        take a few seconds.
+    </p>
+    <p>
+        For more info, check <a href="https://github.com/mkhan45/learning_synthesis">the GitHub repo</a>.
+        This site uses the algorithm in <code>src/enumerative/top_down.rs</code>.
+    </p>
 </main>
 
 <style>
@@ -164,5 +143,18 @@
     pre {
         font-size: 1.5em;
         min-width: 80ch;
+    }
+
+    p {
+        background: #1a1a1a;
+        padding: 1em;
+        margin: auto;
+        text-align: left;
+        max-width: 60ch;
+        font-size: 1.1em;
+    }
+
+    code {
+        font-size: 1.175em;
     }
 </style>
