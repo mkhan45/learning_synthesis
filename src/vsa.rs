@@ -299,7 +299,8 @@ impl Language<Lit> for Fun {
                         _ => panic!(),
                     };
 
-                    let re = Regex::new(inner).unwrap();
+                    use crate::enumerative::regex;
+                    let re = regex(inner);
                     let mut found = re.find_iter(outer)
                         .map(|m| Lit::LocConst(m.start()));
 
