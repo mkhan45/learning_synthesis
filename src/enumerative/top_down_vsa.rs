@@ -44,6 +44,8 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
                     .filter(|c| !c.is_alphanumeric())
                     .map(|c| match c {
                         '.' => Lit::StringConst("\\.".to_string()),
+                        '{' => Lit::StringConst("\\{".to_string()),
+                        '}' => Lit::StringConst("\\{".to_string()),
                         _ => Lit::StringConst(c.to_string()),
                     })
                 .collect::<HashSet<_>>()

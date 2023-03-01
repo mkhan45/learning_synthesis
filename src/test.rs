@@ -129,11 +129,11 @@ test_str!(
 
 test_str!(
     test_json,
-    "one first example" => "first example",
-    "three third example" => "third example";
+    "one 1" => "{one: 1}",
+    "three aaa" => "{three: aaa}";
 
-    "two second example" => "second example",
-    "four fourth example" => "fourth example"
+    "two second example" => "{two: second example}",
+    "four fourth example" => "{four: fourth example}"
 );
 
 test_str!(
