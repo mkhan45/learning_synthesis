@@ -64,6 +64,24 @@ const builtin_examples: Array<{name: string, io: Array<IO>}> = [
             {in: "Quarrying EU", out: null},
         ]
     },
+    {
+        name: "JSON-ish",
+        io: [
+            {in: "First 1", out: "{First: 1}"},
+            {in: "line two", out: "{line: two}"},
+            {in: "Third three", out: null},
+            {in: "Fourth 4", out: null},
+        ]
+    },
+    {
+        name: "Trim first repeats",
+        io: [
+            {in: "     hello", out: "hello"},
+            {in: "aaabbcd", out: "bbcd"},
+            {in: "aaaaa", out: null},
+            {in: "ssss snake", out: null},
+        ]
+    },
 ];
 
 export { builtin_examples }

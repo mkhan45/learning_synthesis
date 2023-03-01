@@ -17,6 +17,7 @@ type AST = crate::vsa::AST<Lit, Fun>;
 lazy_static! {
     // TODO: figure out ideal cache size
     pub static ref CACHE: RwLock<LruCache<String, Regex>> = RwLock::new(LruCache::new(NonZeroUsize::new(2000).unwrap()));
+    pub static ref EMPTY_REGEX: Regex = Regex::new(".").unwrap();
 }
 
 pub fn regex(s: &String) -> Regex {
@@ -24,7 +25,8 @@ pub fn regex(s: &String) -> Regex {
     if cache_writer.contains(s) {
         cache_writer.get(s).unwrap().clone()
     } else {
-        cache_writer.push(s.clone(), Regex::new(s).unwrap());
+        // cache_writer.push(s.clone(), Regex::new(s).unwrap_or(regex(&".".to_string())));
+        cache_writer.push(s.clone(), Regex::new(s).unwrap_or(EMPTY_REGEX.clone()));
         cache_writer.get(s).unwrap().clone()
     }
 }
@@ -34,6 +36,7 @@ pub fn regex(s: &String) -> Regex {
 
 pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
     let mut bank = Bank::new();
+    let mut regex_bank = Bank::new();
     let mut all_cache = HashMap::new();
 
     let mut char_sets = examples.iter().map(|(inp, out)| {
@@ -44,6 +47,8 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
                     .filter(|c| !c.is_alphanumeric())
                     .map(|c| match c {
                         '.' => Lit::StringConst("\\.".to_string()),
+                        '{' => Lit::StringConst("\\{".to_string()),
+                        '}' => Lit::StringConst("\\{".to_string()),
                         _ => Lit::StringConst(c.to_string()),
                     })
                 .collect::<HashSet<_>>()
@@ -66,15 +71,10 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
         Lit::StringConst("".to_string()),
         Lit::StringConst(" ".to_string()),
         Lit::StringConst(".".to_string()),
-        Lit::StringConst("\\s".to_string()),
-        Lit::StringConst("\\d".to_string()),
-        Lit::StringConst("\\b".to_string()),
-        Lit::StringConst("[a-z]".to_string()),
-        Lit::StringConst("[A-Z]".to_string()),
         Lit::LocConst(0),
         Lit::LocConst(1),
         Lit::LocEnd,
-    ].into_iter().chain(intersection.into_iter()) {
+    ].into_iter().chain(intersection.clone().into_iter()) {
         bank.size_mut(1).push(AST::Lit(prim.clone()));
         all_cache.insert(
             std::iter::repeat(prim.clone())
@@ -84,11 +84,20 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
         );
     }
 
+    for prim in [
+        Lit::StringConst("\\d".to_string()),
+        Lit::StringConst("\\b".to_string()),
+        Lit::StringConst("[a-z]".to_string()),
+        Lit::StringConst("[A-Z]".to_string()),
+    ].into_iter().chain(intersection.into_iter()) {
+        regex_bank.size_mut(1).push(AST::Lit(prim.clone()));
+    };
+
     let mut size = 1;
     let inps = examples.iter().map(|(inp, _)| inp);
 
     while size <= 7 {
-        bottom_up(inps.clone(), size, &mut all_cache, &mut bank);
+        bottom_up(inps.clone(), size, &mut all_cache, &mut bank, &mut regex_bank);
         // dbg!(bank.total_entries());
         let mut ex_vsas = examples
             .iter()
@@ -103,7 +112,7 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
                     }
                 }
 
-                learn(inp, out, &mut cache, &mut HashSet::new())
+                learn(inp, out, &mut cache)
             });
 
         let mut res = ex_vsas.next().unwrap();
@@ -133,19 +142,12 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
 // TODO:
 // there's still an issue with cycles here
 // maybe still needs a queue
-fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut HashSet<Lit>) -> Rc<VSA> {
+fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
     let mut unifier = Vec::new();
     if let Some(res) = cache.get(out) {
         unifier.push(res.as_ref().clone());
         // return res.clone();
     }
-
-    // this helps test_json but breaks test_delete_between and test_duet_abbrev
-    // if visited.contains(out) {
-    //     return Rc::new(VSA::empty());
-    // }
-
-    visited.insert(out.clone());
 
     macro_rules! multi_match {
         ($v:expr, $($p:pat $(if $guard:expr)? => $res:expr),*) => {
@@ -183,8 +185,8 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
             .map(|m| {
                 let start = m.start();
                 let end = m.end();
-                let start_vsa = learn(inp, &Lit::StringConst(s[0..start].to_string()), cache, visited);
-                let end_vsa = learn(inp, &Lit::StringConst(s[end..].to_string()), cache, visited);
+                let start_vsa = learn(inp, &Lit::StringConst(s[0..start].to_string()), cache);
+                let end_vsa = learn(inp, &Lit::StringConst(s[end..].to_string()), cache);
                 // dbg!(start, end, s[0..start].to_string(), s[end..].to_string(), start_vsa.clone(), end_vsa.clone());
                 // TODO: maybe add a simplify function to the AST
                 VSA::Join {
@@ -194,7 +196,7 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
                         Rc::new(VSA::Join {
                             op: Fun::Concat,
                             children: vec![
-                                learn(inp, &Lit::Input, cache, visited),
+                                learn(inp, &Lit::Input, cache),
                                 end_vsa,
                             ],
                         }),
@@ -211,8 +213,8 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
                 .map(|m| {
                     let start = m.start();
                     let end = m.end();
-                    let start_vsa = learn(inp, &Lit::LocConst(start), cache, visited);
-                    let end_vsa = learn(inp, &Lit::LocConst(end), cache, visited);
+                    let start_vsa = learn(inp, &Lit::LocConst(start), cache);
+                    let end_vsa = learn(inp, &Lit::LocConst(end), cache);
                     VSA::Join {
                         op: Fun::Slice,
                         children: vec![
@@ -245,18 +247,16 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
                                 inp,
                                 &Lit::StringConst(s[0..i].to_string()),
                                 cache,
-                                visited,
                             ),
                             learn(
                                 inp,
                                 &Lit::StringConst(s[i..].to_string()),
                                 cache,
-                                visited,
                             ),
                         ],
                     })
                 .map(Rc::new)
-                    .collect();
+                .collect();
 
                 unifier.push(VSA::Union(set));
             }
@@ -300,9 +300,11 @@ fn bottom_up<'a>(
     size: usize,
     cache: &mut HashMap<Vec<Lit>, Rc<VSA>>,
     bank: &mut Bank<AST>,
+    regex_bank: &mut Bank<AST>,
 ) {
     // dbg!(size);
     bank.grow_to(size);
+    regex_bank.grow_to(size);
     // builds a VSA for a given I/O example
     // then we can add these to the cache for `learn`
 
@@ -311,6 +313,11 @@ fn bottom_up<'a>(
     //
     // TODO: probably remove LocAdd and LocSub in favor for LocInc and LocDec or something
     use crate::vsa::{Fun::*, Lit::*};
+
+    #[rustfmt::skip]
+    let regexes_of_size = |n: usize| {
+        regex_bank.size(n).iter()
+    };
 
     #[rustfmt::skip]
     let strings_of_size = |n: usize| {
@@ -362,6 +369,15 @@ fn bottom_up<'a>(
             })
         });
 
+        let re_concats = (1..size).flat_map(|i| {
+            let lhs_size = i;
+            let rhs_size = size - i;
+            iproduct!(regexes_of_size(lhs_size), regexes_of_size(rhs_size)).map(|(lhs, rhs)| AST::App {
+                fun: Fun::Concat,
+                args: vec![lhs.clone(), rhs.clone()],
+            })
+        });
+
         let finds = (1..size-1).flat_map(|l| {
             (l+1..size).flat_map(move |r| {
                 let lhs_size = l;
@@ -370,12 +386,19 @@ fn bottom_up<'a>(
                 // dbg!(lhs_size, rhs_size, index_size);
                 iproduct!(
                     strings_of_size(lhs_size),
-                    strings_of_size(rhs_size),
+                    // strings_of_size(rhs_size),
+                    strings_of_size(rhs_size).chain(regexes_of_size(rhs_size)),
                     locs_of_size(index_size)
-                ).map(|(lhs, rhs, index)| AST::App {
-                    fun: Fun::Find,
-                    args: vec![lhs.clone(), rhs.clone(), index.clone()],
-                })
+                ).flat_map(|(lhs, rhs, index)| [
+                    AST::App {
+                        fun: Fun::Find,
+                        args: vec![lhs.clone(), rhs.clone(), index.clone()],
+                    },
+                    AST::App {
+                        fun: Fun::FindEnd,
+                        args: vec![lhs.clone(), rhs.clone(), index.clone()],
+                    }
+                ])
             })});
 
         let slices = (1..size).flat_map(|i| {
@@ -387,11 +410,24 @@ fn bottom_up<'a>(
             })
         });
 
+        let re_groups = (1..size-1).flat_map(|size| {
+            strings_of_size(size).map(|e| {
+                AST::App {
+                    fun: Fun::Concat,
+                    args: vec![e.clone(), AST::Lit(Lit::StringConst("+".to_string()))],
+                }
+            })
+        });
+        // dbg!(re_groups.clone().collect::<Vec<_>>());
+
         loc_adds
             .chain(loc_subs)
-            .chain(concats)
+            .chain(re_concats)
+            // .chain(concats) // TODO: separate regexes from strings, then we only have to bottom up
+                            // concat regexes
             .chain(slices)
             .chain(finds)
+            .chain(re_groups)
     }
     .filter(|adj| {
         let outs = inps.clone().map(|inp| adj.eval(inp)).collect::<Vec<_>>();

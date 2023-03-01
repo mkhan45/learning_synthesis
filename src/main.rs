@@ -86,9 +86,9 @@ test_str!(
 test_str!(
     test_duet_model_no,
     "Tire Pressure ABC123873 Monitor" => "ABC123873",
-    " Air conditioner GHF211 maintenance" => "GHF211";
+    "ABC849999999021 Oil Life gauge" => "ABC849999999021";
 
-    " Oil Life ABC849999999021 gauge" => "ABC849999999021"
+    " Air conditioner GHF211 maintenance" => "GHF211"
 );
 
 test_str!(
@@ -136,11 +136,11 @@ test_str!(
 
 test_str!(
     test_json,
-    "one first example" => "first example",
-    "three third example" => "third example";
+    "one 1" => "{one: 1}",
+    "three aaa" => "{three: aaa}";
 
-    "two second example" => "second example",
-    "four fourth example" => "fourth example"
+    "two second example" => "{two: second example}",
+    "four fourth example" => "{four: fourth example}"
 );
 
 test_str!(
@@ -171,4 +171,14 @@ test_str!(
     "Linux Linux 2.6 Linux" => "2.6",
     "AIX 5.1" => "5.1",
     "VMware ESX Server 3.5.0 build-110268" => "3.5"
+);
+
+test_str!(
+    test_rle_snippet,
+    "aaabcdefg" => "aaa",
+    "bcdefg" => "b",
+    "eefg" => "ee";
+
+    "sssss" => "sssss",
+    "opasdf" => "o"
 );
