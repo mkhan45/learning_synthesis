@@ -43,6 +43,7 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
 
     for prim in [
         Lit::Input,
+        Lit::StringConst("".to_string()),
         Lit::StringConst(" ".to_string()),
         Lit::StringConst(".".to_string()),
         Lit::StringConst("\\s".to_string()),
@@ -134,6 +135,9 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
     // (Lit::StringConst(s), _) if s.as_str() == "." => {
     //     unifier.push(VSA::singleton(AST::Lit(Lit::StringConst(".".to_string()))))
     // },
+    //
+    // TODO:
+    // this makes it impossible to learn in one shot
     (Lit::StringConst(s), _) => {
         unifier.push(VSA::singleton(AST::Lit(Lit::StringConst(s.clone()))))
     },
@@ -142,62 +146,90 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, visited: &mut 
         unifier.push(VSA::singleton(AST::Lit(Lit::LocEnd)));
     },
 
-    (Lit::StringConst(s), Lit::StringConst(inp_str)) if inp_str.contains(s) => {
-        let re = Regex::new(s).unwrap();
+    (Lit::StringConst(s), Lit::StringConst(inp_str)) if s.contains(inp_str) => {
+        let re = Regex::new(inp_str).unwrap();
 
-        re.find_iter(inp_str)
+        re.find_iter(s)
             .map(|m| {
                 let start = m.start();
                 let end = m.end();
-                let start_vsa = learn(inp, &Lit::LocConst(start), cache, visited);
-                let end_vsa = learn(inp, &Lit::LocConst(end), cache, visited);
+                let start_vsa = learn(inp, &Lit::StringConst(s[0..start].to_string()), cache, visited);
+                let end_vsa = learn(inp, &Lit::StringConst(s[end..].to_string()), cache, visited);
+                // dbg!(start, end, s[0..start].to_string(), s[end..].to_string(), start_vsa.clone(), end_vsa.clone());
+                // TODO: maybe add a simplify function to the AST
                 VSA::Join {
-                    op: Fun::Slice,
+                    op: Fun::Concat,
                     children: vec![
                         start_vsa,
-                        end_vsa,
+                        Rc::new(VSA::Join {
+                            op: Fun::Concat,
+                            children: vec![
+                                learn(inp, &Lit::Input, cache, visited),
+                                end_vsa,
+                            ],
+                        }),
                     ],
                 }
             })
+        .for_each(|vsa| unifier.push(vsa));
+        },
+
+        (Lit::StringConst(s), Lit::StringConst(inp_str)) if inp_str.contains(s) => {
+            let re = Regex::new(s).unwrap();
+
+            re.find_iter(inp_str)
+                .map(|m| {
+                    let start = m.start();
+                    let end = m.end();
+                    let start_vsa = learn(inp, &Lit::LocConst(start), cache, visited);
+                    let end_vsa = learn(inp, &Lit::LocConst(end), cache, visited);
+                    VSA::Join {
+                        op: Fun::Slice,
+                        children: vec![
+                            start_vsa,
+                            end_vsa,
+                        ],
+                    }
+                })
             .for_each(|vsa| unifier.push(vsa));
-        // let start = inp_str.find(s).unwrap();
-        // let end = start + s.len();
-        // // dbg!(s, start, end);
-        // let start_vsa = learn(inp, &Lit::LocConst(start), cache);
-        // let end_vsa = learn(inp, &Lit::LocConst(end), cache);
-        // unifier.push(VSA::Join {
-        //     op: Fun::Slice,
-        //     children: vec![
-        //         start_vsa,
-        //         end_vsa,
-        //     ],
-        // });
-    },
+            // let start = inp_str.find(s).unwrap();
+            // let end = start + s.len();
+            // // dbg!(s, start, end);
+            // let start_vsa = learn(inp, &Lit::LocConst(start), cache);
+            // let end_vsa = learn(inp, &Lit::LocConst(end), cache);
+            // unifier.push(VSA::Join {
+            //     op: Fun::Slice,
+            //     children: vec![
+            //         start_vsa,
+            //         end_vsa,
+            //     ],
+            // });
+            },
 
-    (Lit::StringConst(s), Lit::StringConst(_)) => {
-        let set = (1..s.len())
-            .map(|i| VSA::Join {
-                op: Fun::Concat,
-                children: vec![
-                    learn(
-                        inp,
-                        &Lit::StringConst(s[0..i].to_string()),
-                        cache,
-                        visited,
-                    ),
-                    learn(
-                        inp,
-                        &Lit::StringConst(s[i..].to_string()),
-                        cache,
-                        visited,
-                    ),
-                ],
-            })
-        .map(Rc::new)
-            .collect();
+            (Lit::StringConst(s), Lit::StringConst(inp_str)) if !inp_str.contains(s) && !s.contains(inp_str) => {
+                let set = (1..s.len())
+                    .map(|i| VSA::Join {
+                        op: Fun::Concat,
+                        children: vec![
+                            learn(
+                                inp,
+                                &Lit::StringConst(s[0..i].to_string()),
+                                cache,
+                                visited,
+                            ),
+                            learn(
+                                inp,
+                                &Lit::StringConst(s[i..].to_string()),
+                                cache,
+                                visited,
+                            ),
+                        ],
+                    })
+                .map(Rc::new)
+                .collect();
 
-        unifier.push(VSA::Union(set));
-    }
+                unifier.push(VSA::Union(set));
+        }
 
     // TODO: figure out the index
     // (Lit::LocConst(n), Lit::StringConst(s)) if s.chars().nth(*n).is_some_and(|ch| ch == ' ') => {

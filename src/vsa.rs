@@ -378,6 +378,23 @@ where
 impl Display for AST<Lit, Fun> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            // stupid rewrite because of dumb witness
+            AST::App {
+                fun: Fun::Concat,
+                args,
+            } if args[0].eval(&Lit::StringConst("X".to_string())) == Lit::StringConst("".to_string()) => {
+                // assume it's only 2 args bc it shouldnt be variadic anyway
+                let (_fst, snd) = (args[0].clone(), args[1].clone());
+                write!(f, "{snd}")
+            }
+            AST::App {
+                fun: Fun::Concat,
+                args,
+            } if args[1].eval(&Lit::StringConst("X".to_string())) == Lit::StringConst("".to_string()) => {
+                // assume it's only 2 args bc it shouldnt be variadic anyway
+                let (fst, _snd) = (args[0].clone(), args[1].clone());
+                write!(f, "{fst}")
+            }
             AST::App {
                 fun: Fun::Concat,
                 args,

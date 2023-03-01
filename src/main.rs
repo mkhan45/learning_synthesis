@@ -146,7 +146,7 @@ test_str!(
 test_str!(
     test_append,
     "Hello" => "Hello World",
-    "AAA" => "AAA World";
+    "Goodbye" => "Goodbye World";
 
     "B" => "B World"
 );
