@@ -12,7 +12,7 @@ type VSA = crate::vsa::VSA<Lit, Fun>;
 type AST = crate::vsa::AST<Lit, Fun>;
 
 // TODO:
-// - intersection broken?
+// add a substitute function
 
 pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
     let mut bank = Bank::new();
