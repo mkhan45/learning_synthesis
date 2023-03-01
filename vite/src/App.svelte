@@ -1,7 +1,7 @@
 <script lang="ts">
   /* import * as _ from "lodash" */
-  import type { IO } from "./util.ts";
-  import { builtin_examples } from "./util.ts";
+  import type { IO } from "./lib.ts";
+  import { builtin_examples } from "./lib.ts";
 
   let examples: Array<IO> = [{in: "", out: null}];
   let program: string = "None";
