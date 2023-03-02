@@ -175,3 +175,53 @@ test_str!(
     "sssss" => "sssss",
     "opasdf" => "o"
 );
+
+// maybe i need a macro macro
+macro_rules! test_num {
+    ($name:ident, $($inp:expr => $out:expr),+; $($test_inp:expr => $test_out:expr),+) => {
+        #[test]
+        fn $name() {
+            use crate::vsa::Lit;
+            use crate::enumerative::top_down_vsa;
+
+            let (tx, rx) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                let res = top_down_vsa(&vec![
+                    $(
+                        (
+                            Lit::StringConst($inp.to_string()),
+                            Lit::LocConst($out),
+                        ),
+                    )+
+                ]);
+                println!("{}, size = {}", res, res.size());
+
+                $(
+                    let evaled = match res.eval(&Lit::StringConst($test_inp.to_string())) {
+                        Lit::LocEnd => Lit::LocConst($test_inp.len()),
+                        e => e,
+                    };
+
+                    assert_eq!(
+                        evaled,
+                        Lit::LocConst($test_out)
+                    );
+                )+
+                tx.send(()).unwrap();
+            });
+
+            if let Err(_) = rx.recv_timeout(std::time::Duration::from_secs(12)) {
+                panic!("timeout");
+            }
+        }
+    };
+}
+
+test_num! {
+    test_length,
+    "a" => 1,
+    "abcdefg" => 7;
+
+    "abc" => 3,
+    "1234567890" => 10
+}
