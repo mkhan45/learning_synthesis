@@ -53,7 +53,7 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
                     })
                 .collect::<HashSet<_>>()
             },
-            _ => panic!(),
+            _ => HashSet::new(),
         }
     });
     let intersection = char_sets.next().map(|s1| {
@@ -360,6 +360,8 @@ fn bottom_up<'a>(
             })
         });
 
+        // I guess the concat witness function is complete
+        // so this isn't needed
         let concats = (1..size).flat_map(|i| {
             let lhs_size = i;
             let rhs_size = size - i;
@@ -423,8 +425,7 @@ fn bottom_up<'a>(
         loc_adds
             .chain(loc_subs)
             .chain(re_concats)
-            // .chain(concats) // TODO: separate regexes from strings, then we only have to bottom up
-                            // concat regexes
+            // .chain(concats) 
             .chain(slices)
             .chain(finds)
             .chain(re_groups)
