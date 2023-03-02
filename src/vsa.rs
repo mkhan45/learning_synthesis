@@ -1,5 +1,4 @@
 use itertools::Itertools;
-use regex::Regex;
 use std::{collections::HashMap, collections::HashSet, fmt::Display, rc::Rc};
 
 pub trait Language<L> {
@@ -236,6 +235,7 @@ pub enum Fun {
     LocSub,
     Lowercase,
     Uppercase,
+    ConcatMap,
 }
 
 impl Fun {
@@ -279,18 +279,16 @@ impl Language<Lit> for Fun {
     fn eval(&self, args: &[Lit], input: &Lit) -> Lit {
         match self {
             Fun::Concat => {
-                let mut buf = String::new();
-                for arg in args {
-                    match arg {
-                        Lit::StringConst(s) => buf.push_str(s),
-                        // _ => panic!(),
-                        _ => {
-                            dbg!(arg);
-                            panic!()
-                        }
-                    }
+                match args {
+                    [Lit::StringConst(lhs), Lit::StringConst(rhs)] => Lit::StringConst(format!("{}{}", lhs, rhs)),
+                    _ => panic!(),
                 }
-                Lit::StringConst(buf)
+            }
+            Fun::ConcatMap => {
+                // TODO: can't do this yet because of how eval works
+                todo!()
+                // let mut buf = String::new();
+                // Lit::StringConst(buf)
             }
             Fun::Find => match args {
                 [Lit::StringConst(outer), Lit::StringConst(inner), index] => {
@@ -333,9 +331,9 @@ impl Language<Lit> for Fun {
             Fun::Slice => match (args, input) {
                 ([Lit::LocConst(start), Lit::LocConst(end)], Lit::StringConst(s))
                     if start <= end && end <= &s.len() =>
-                {
-                    Lit::StringConst(s[*start..*end].to_owned())
-                }
+                    {
+                        Lit::StringConst(s[*start..*end].to_owned())
+                    }
                 ([Lit::LocConst(start), Lit::LocEnd], Lit::StringConst(s)) if *start <= s.len() => {
                     Lit::StringConst(s[*start..].to_owned())
                 }
@@ -423,6 +421,14 @@ impl Display for AST<Lit, Fun> {
                 // assume it's only 2 args bc it shouldnt be variadic anyway
                 let (fst, snd) = (args[0].clone(), args[1].clone());
                 write!(f, "({fst} <> {snd})")
+            }
+            AST::App {
+                fun: Fun::ConcatMap,
+                args,
+            } => {
+                // assume it's only 2 args bc it shouldnt be variadic anyway
+                let (split, subprog) = (args[0].clone(), args[1].clone());
+                write!(f, "X.split({split}).concat_map(λX.{subprog})")
             }
             AST::App {
                 fun: Fun::Find,
