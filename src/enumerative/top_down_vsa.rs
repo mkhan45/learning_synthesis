@@ -112,7 +112,7 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
                     }
                 }
 
-                learn(inp, out, &mut cache)
+                learn(inp, out, &mut cache, dbg!(&examples[i+1..]))
             });
 
         let mut res = ex_vsas.next().unwrap();
@@ -122,7 +122,7 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
         // check if it works on all examples
         for vsa in ex_vsas {
             if let Some(prog) = res.pick_one() {
-                if examples.iter().all(|(inp, out)| prog.eval(inp) == *out) {
+                if examples.iter().all(|(inp, out)| prog.eval(inp).is_some_and(|res| res == *out)) {
                     break;
                 };
             }
@@ -142,7 +142,7 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
 // TODO:
 // there's still an issue with cycles here
 // maybe still needs a queue
-fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
+fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, recurrences: &[(Lit, Lit)]) -> Rc<VSA> {
     let mut unifier = Vec::new();
     if let Some(res) = cache.get(out) {
         unifier.push(res.as_ref().clone());
@@ -152,6 +152,7 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
     macro_rules! multi_match {
         ($v:expr, $($p:pat $(if $guard:expr)? => $res:expr),*) => {
             $(
+                #[allow(unreachable_patterns)]
                 match $v {
                     $p $(if $guard)? => $res,
                     _ => {},
@@ -178,6 +179,27 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
         unifier.push(VSA::singleton(AST::Lit(Lit::LocEnd)));
     },
 
+    (out, inp) => {
+        let found_recurrence = recurrences.iter().enumerate().find(|(_, (inp2, out2))| {
+            inp != inp2 && out == out2
+        });
+        if let Some((i, (inp2, _))) = found_recurrence {
+            // dbg!(inp, inp2);
+            let res = VSA::Join {
+                op: Fun::Recurse,
+                children: vec![learn(inp, inp2, cache, &recurrences[i+1..])]
+            };
+            match res.pick_one() {
+                Some(res) => println!("res: {}", res),
+                None => println!("no res"),
+            }
+            unifier.push(VSA::Join {
+                op: Fun::Recurse,
+                children: vec![learn(inp, inp2, cache, &recurrences[i+1..])]
+            });
+        }
+    },
+
     (Lit::StringConst(s), Lit::StringConst(inp_str)) if s.contains(inp_str) => {
         let re = regex(inp_str);
 
@@ -185,8 +207,8 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
             .map(|m| {
                 let start = m.start();
                 let end = m.end();
-                let start_vsa = learn(inp, &Lit::StringConst(s[0..start].to_string()), cache);
-                let end_vsa = learn(inp, &Lit::StringConst(s[end..].to_string()), cache);
+                let start_vsa = learn(inp, &Lit::StringConst(s[0..start].to_string()), cache, recurrences);
+                let end_vsa = learn(inp, &Lit::StringConst(s[end..].to_string()), cache, recurrences);
                 // dbg!(start, end, s[0..start].to_string(), s[end..].to_string(), start_vsa.clone(), end_vsa.clone());
                 // TODO: maybe add a simplify function to the AST
                 VSA::Join {
@@ -196,7 +218,7 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
                         Rc::new(VSA::Join {
                             op: Fun::Concat,
                             children: vec![
-                                learn(inp, &Lit::Input, cache),
+                                learn(inp, &Lit::Input, cache, recurrences),
                                 end_vsa,
                             ],
                         }),
@@ -213,8 +235,8 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
                 .map(|m| {
                     let start = m.start();
                     let end = m.end();
-                    let start_vsa = learn(inp, &Lit::LocConst(start), cache);
-                    let end_vsa = learn(inp, &Lit::LocConst(end), cache);
+                    let start_vsa = learn(inp, &Lit::LocConst(start), cache, recurrences);
+                    let end_vsa = learn(inp, &Lit::LocConst(end), cache, recurrences);
                     VSA::Join {
                         op: Fun::Slice,
                         children: vec![
@@ -247,11 +269,13 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
                                 inp,
                                 &Lit::StringConst(s[0..i].to_string()),
                                 cache,
+                                recurrences,
                             ),
                             learn(
                                 inp,
                                 &Lit::StringConst(s[i..].to_string()),
                                 cache,
+                                recurrences,
                             ),
                         ],
                     })
@@ -422,6 +446,16 @@ fn bottom_up<'a>(
         });
         // dbg!(re_groups.clone().collect::<Vec<_>>());
 
+        let recurses = (1..size-1).flat_map(|size| {
+            strings_of_size(size).map(|s| {
+                AST::App {
+                    fun: Fun::Recurse,
+                    args: vec![s.clone()],
+                }
+            })
+        });
+        // dbg!(recurses.clone().collect::<Vec<_>>());
+
         loc_adds
             .chain(loc_subs)
             .chain(re_concats)
@@ -429,9 +463,10 @@ fn bottom_up<'a>(
             .chain(slices)
             .chain(finds)
             .chain(re_groups)
+            .chain(recurses)
     }
     .filter(|adj| {
-        let outs = inps.clone().map(|inp| adj.eval(inp)).collect::<Vec<_>>();
+        let outs = inps.clone().map(|inp| adj.eval(inp).unwrap_or(Lit::LocConst(0))).collect::<Vec<_>>();
         use std::collections::hash_map::Entry;
 
         // dbg!(adj.size(), size);

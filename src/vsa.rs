@@ -1,8 +1,12 @@
 use itertools::Itertools;
 use std::{collections::HashMap, collections::HashSet, fmt::Display, rc::Rc};
 
-pub trait Language<L> {
-    fn eval(&self, args: &[L], input: &L) -> L;
+pub trait Language<L> 
+where
+    L: std::hash::Hash + std::fmt::Debug + InputLit,
+    Self: std::hash::Hash + std::fmt::Debug + Sized,
+{
+    fn eval(&self, args: &[L], input: &L, prog: &AST<L, Self>) -> Option<L>;
 }
 
 #[derive(Debug, Clone)]
@@ -59,7 +63,7 @@ where
     }
 
     fn eval(&self, inp: &L) -> L {
-        self.pick_one().unwrap().eval(inp)
+        self.pick_one().unwrap().eval(inp).unwrap()
         // match self {
         //     VSA::Leaf(c) => c.iter().next().unwrap().clone().eval(inp),
         //     VSA::Union(c) => c[0].eval(inp),
@@ -194,7 +198,7 @@ where
                 s.iter()
                     .map(|p| {
                         (
-                            p.eval(input),
+                            p.eval(input).unwrap(),
                             Rc::new(VSA::Leaf(std::iter::once(p.clone()).collect())),
                         )
                     })
@@ -215,7 +219,7 @@ where
                             fun: *op,
                             args: m.keys().map(|l| AST::Lit(l.clone())).collect(),
                         };
-                        let res = ast.eval(input);
+                        let res = ast.eval(input).unwrap();
                         (res, vsa.clone())
                     })
                     .collect(),
@@ -235,7 +239,7 @@ pub enum Fun {
     LocSub,
     Lowercase,
     Uppercase,
-    ConcatMap,
+    Recurse,
 }
 
 impl Fun {
@@ -276,19 +280,13 @@ where
 }
 
 impl Language<Lit> for Fun {
-    fn eval(&self, args: &[Lit], input: &Lit) -> Lit {
-        match self {
+    fn eval(&self, args: &[Lit], input: &Lit, prog: &AST<Lit, Fun>) -> Option<Lit> {
+        Some(match self {
             Fun::Concat => {
                 match args {
                     [Lit::StringConst(lhs), Lit::StringConst(rhs)] => Lit::StringConst(format!("{}{}", lhs, rhs)),
                     _ => panic!(),
                 }
-            }
-            Fun::ConcatMap => {
-                // TODO: can't do this yet because of how eval works
-                todo!()
-                // let mut buf = String::new();
-                // Lit::StringConst(buf)
             }
             Fun::Find => match args {
                 [Lit::StringConst(outer), Lit::StringConst(inner), index] => {
@@ -337,7 +335,7 @@ impl Language<Lit> for Fun {
                 ([Lit::LocConst(start), Lit::LocEnd], Lit::StringConst(s)) if *start <= s.len() => {
                     Lit::StringConst(s[*start..].to_owned())
                 }
-                _ => Lit::StringConst("".to_string()),
+                _ => return None,
             },
             Fun::LocAdd => match args {
                 [Lit::LocConst(a), Lit::LocConst(b)] => Lit::LocConst(a + b),
@@ -359,7 +357,12 @@ impl Language<Lit> for Fun {
                 [Lit::StringConst(s)] => Lit::StringConst(s.to_uppercase()),
                 _ => panic!(),
             },
-        }
+            Fun::Recurse => match (args, input) {
+                ([x@Lit::StringConst(s)], Lit::StringConst(inp)) if s.len() < inp.len() => return prog.eval(x),
+                ([_], _) => return None,
+                _ => panic!(),
+            }
+        })
     }
 }
 
@@ -368,22 +371,24 @@ where
     L: Clone + std::hash::Hash + std::fmt::Debug + InputLit,
     F: Language<L> + Copy + std::hash::Hash + std::fmt::Debug,
 {
-    pub fn eval(&self, inp: &L) -> L {
+    pub fn eval(&self, inp: &L) -> Option<L> {
         match self {
-            AST::Lit(l) if l.is_input() => inp.clone(),
-            AST::Lit(l) => l.clone(),
+            AST::Lit(l) if l.is_input() => Some(inp.clone()),
+            AST::Lit(l) => Some(l.clone()),
             AST::App { fun, args } => {
                 let evaled = args.iter().map(|ast| ast.eval(inp)).collect::<Vec<_>>();
-                fun.eval(&evaled, inp)
+                if evaled.iter().any(|x| x.is_none()) {
+                    None
+                } else {
+                    let eval_unwrapped = args.iter().map(|ast| ast.eval(inp)).map(Option::unwrap).collect::<Vec<_>>();
+                    fun.eval(&eval_unwrapped, inp, self)
+                }
             }
         }
     }
 
     pub fn size(&self) -> usize {
-        match self {
-            AST::Lit(_) => 1,
-            AST::App { args, .. } => 1 + args.iter().map(AST::size).sum::<usize>(),
-        }
+        self.cost(|_| 1)
     }
 
     pub fn cost(&self, fn_ranker: impl Fn(&F) -> usize) -> usize {
@@ -421,14 +426,6 @@ impl Display for AST<Lit, Fun> {
                 // assume it's only 2 args bc it shouldnt be variadic anyway
                 let (fst, snd) = (args[0].clone(), args[1].clone());
                 write!(f, "({fst} <> {snd})")
-            }
-            AST::App {
-                fun: Fun::ConcatMap,
-                args,
-            } => {
-                // assume it's only 2 args bc it shouldnt be variadic anyway
-                let (split, subprog) = (args[0].clone(), args[1].clone());
-                write!(f, "X.split({split}).concat_map(λX.{subprog})")
             }
             AST::App {
                 fun: Fun::Find,
@@ -481,6 +478,13 @@ impl Display for AST<Lit, Fun> {
             } => {
                 let x = args[0].clone();
                 write!(f, "{x}.upper()")
+            }
+            AST::App {
+                fun: Fun::Recurse,
+                args,
+            } => {
+                let x = args[0].clone();
+                write!(f, "Δ({x})")
             }
             AST::Lit(Lit::StringConst(s)) => write!(f, "'{}'", s),
             AST::Lit(Lit::LocConst(n)) => write!(f, "{}", n),

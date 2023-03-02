@@ -19,7 +19,7 @@ macro_rules! test_str {
 
                 $(
                     assert_eq!(
-                        res.eval(&Lit::StringConst($test_inp.to_string())),
+                        res.eval(&Lit::StringConst($test_inp.to_string())).unwrap(),
                         Lit::StringConst($test_out.to_string())
                     );
                 )+
@@ -176,6 +176,20 @@ test_str!(
     "opasdf" => "o"
 );
 
+test_str!(
+    test_recurse,
+    "ABC" => "C",
+    "BC" => "C",
+    "C" => "C",
+
+    "EFG" => "G",
+    "FG" => "G",
+    "G" => "G";
+
+    "a b" => "ab",
+    "c d h" => "cdh"
+);
+
 // maybe i need a macro macro
 macro_rules! test_num {
     ($name:ident, $($inp:expr => $out:expr),+; $($test_inp:expr => $test_out:expr),+) => {
@@ -197,7 +211,7 @@ macro_rules! test_num {
                 println!("{}, size = {}", res, res.size());
 
                 $(
-                    let evaled = match res.eval(&Lit::StringConst($test_inp.to_string())) {
+                    let evaled = match res.eval(&Lit::StringConst($test_inp.to_string())).unwrap() {
                         Lit::LocEnd => Lit::LocConst($test_inp.len()),
                         e => e,
                     };

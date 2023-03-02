@@ -39,7 +39,7 @@ pub fn synthesize(inps: Vec<JsString>, outs: Vec<JsString>, tests: Vec<JsString>
             let mut error = false;
             let results: Vec<JsString> = tests_rs.iter().map(|inp| {
                 match synth.eval(&Lit::StringConst(inp.to_string())) {
-                    Lit::StringConst(s) => JsString::from_str(&s).unwrap(),
+                    Some(Lit::StringConst(s)) => JsString::from_str(&s).unwrap(),
                     _ => {
                         error = true;
                         JsString::from_str("error").unwrap()
