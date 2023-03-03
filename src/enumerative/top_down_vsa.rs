@@ -112,7 +112,7 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
                     }
                 }
 
-                learn(inp, out, &mut cache, dbg!(&examples[i+1..]))
+                learn(inp, out, &mut cache, &examples[i+1..])
             });
 
         let mut res = ex_vsas.next().unwrap();
@@ -190,7 +190,7 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, recurrences: &
                 children: vec![learn(inp, inp2, cache, &recurrences[i+1..])]
             };
             match res.pick_one() {
-                Some(res) => println!("res: {}", res),
+                Some(res) => println!("learned {} for {:?}", res, out),
                 None => println!("no res"),
             }
             unifier.push(VSA::Join {
@@ -260,8 +260,26 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, recurrences: &
             // });
             },
 
-            (Lit::StringConst(s), Lit::StringConst(inp_str)) if !inp_str.contains(s) && !s.contains(inp_str) => {
-                let set = (1..s.len())
+            (Lit::StringConst(s), _) if s.len() == 1 => {
+                unifier.push(VSA::Join {
+                    op: Fun::Concat,
+                    children: vec![
+                        Rc::new(VSA::singleton(AST::Lit(Lit::StringConst(s.clone())))),
+                        Rc::new(VSA::singleton(AST::Lit(Lit::StringConst("".to_string())))),
+                    ]
+                });
+
+                unifier.push(VSA::Join {
+                    op: Fun::Concat,
+                    children: vec![
+                        Rc::new(VSA::singleton(AST::Lit(Lit::StringConst("".to_string())))),
+                        Rc::new(VSA::singleton(AST::Lit(Lit::StringConst(s.clone())))),
+                    ]
+                });
+            },
+
+            (Lit::StringConst(s), Lit::StringConst(inp_str)) if !inp_str.contains(s) && !s.contains(inp_str) && s.len() > 1 => {
+                (1..s.len())
                     .map(|i| VSA::Join {
                         op: Fun::Concat,
                         children: vec![
@@ -279,10 +297,7 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, recurrences: &
                             ),
                         ],
                     })
-                .map(Rc::new)
-                .collect();
-
-                unifier.push(VSA::Union(set));
+                    .for_each(|vsa| unifier.push(vsa));
             }
 
     // TODO: figure out the index
