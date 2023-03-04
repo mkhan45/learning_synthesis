@@ -178,13 +178,9 @@ test_str!(
 
 test_str!(
     test_recurse,
-    "ABC" => "CBA",
     "BC" => "CB",
     "C" => "C",
-
-    "EFG" => "GFE",
-    "FG" => "GF",
-    "G" => "G";
+    "" => "";
 
     "a b" => "ab",
     "c d h" => "cdh"

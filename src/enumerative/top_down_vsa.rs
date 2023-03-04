@@ -150,18 +150,20 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, recurrences: &
     }
 
     macro_rules! multi_match {
-        ($v:expr, $($p:pat $(if $guard:expr)? => $res:expr),*) => {
+        ($v:expr, $term_var:ident, $($p:pat $(if $guard:expr)? => $res:expr),*) => {
+            #[allow(unused_mut)]
+            let mut $term_var = false;
             $(
                 #[allow(unreachable_patterns)]
                 match $v {
-                    $p $(if $guard)? => $res,
+                    $p $(if ($guard) && !$term_var)? => $res,
                     _ => {},
                 }
             )*
         };
     }
 
-    multi_match!((out, inp),
+    multi_match!((out, inp), terminate,
     // (Lit::StringConst(s), _) if s.as_str() == " " => {
     //     unifier.push(VSA::singleton(AST::Lit(Lit::StringConst(" ".to_string()))))
     // },
@@ -173,6 +175,18 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, recurrences: &
     // this makes it impossible to learn in one shot
     (Lit::StringConst(s), _) => {
         unifier.push(VSA::singleton(AST::Lit(Lit::StringConst(s.clone()))))
+    },
+
+    (Lit::StringConst(s), _) if s.as_str() == "" => {
+        let res = VSA::Join {
+            op: Fun::Recurse,
+            children: vec![
+                Rc::new(VSA::singleton(AST::Lit(Lit::StringConst("".to_string())))),
+            ]
+        };
+        println!("learned {} for {:?}", res.pick_one().unwrap(), out);
+        unifier.push(res);
+        terminate = true;
     },
 
     (Lit::LocConst(n), Lit::StringConst(inp_str)) if inp_str.len() == *n => {
@@ -265,17 +279,19 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, recurrences: &
                     op: Fun::Concat,
                     children: vec![
                         Rc::new(VSA::singleton(AST::Lit(Lit::StringConst(s.clone())))),
-                        Rc::new(VSA::singleton(AST::Lit(Lit::StringConst("".to_string())))),
+                        learn(inp, &Lit::StringConst("".to_string()), cache, recurrences)
                     ]
                 });
 
                 unifier.push(VSA::Join {
                     op: Fun::Concat,
                     children: vec![
-                        Rc::new(VSA::singleton(AST::Lit(Lit::StringConst("".to_string())))),
+                        learn(inp, &Lit::StringConst("".to_string()), cache, recurrences),
                         Rc::new(VSA::singleton(AST::Lit(Lit::StringConst(s.clone())))),
                     ]
                 });
+
+                terminate = true;
             },
 
             (Lit::StringConst(s), Lit::StringConst(inp_str)) if !inp_str.contains(s) && !s.contains(inp_str) && s.len() > 1 => {

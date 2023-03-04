@@ -357,9 +357,9 @@ impl Language<Lit> for Fun {
                 [Lit::StringConst(s)] => Lit::StringConst(s.to_uppercase()),
                 _ => panic!(),
             },
-            Fun::Recurse => match (args, input) {
-                ([x@Lit::StringConst(s)], Lit::StringConst(inp)) if s.len() < inp.len() => return prog.eval(x),
-                ([_], _) => return None,
+            Fun::Recurse => match args {
+                [x@Lit::StringConst(s)] if s.as_str() == "" => return Some(x.clone()),
+                [x] => return prog.eval(x),
                 _ => panic!(),
             }
         })
