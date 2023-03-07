@@ -255,6 +255,7 @@ pub trait InputLit {
 pub enum Lit {
     StringConst(String),
     LocConst(usize),
+    BoolConst(bool),
     LocEnd,
     Input,
 }
@@ -278,12 +279,12 @@ where
 impl Language<Lit> for Fun {
     fn eval(&self, args: &[Lit], input: &Lit) -> Lit {
         match self {
-            Fun::Concat => {
-                match args {
-                    [Lit::StringConst(lhs), Lit::StringConst(rhs)] => Lit::StringConst(format!("{}{}", lhs, rhs)),
-                    _ => panic!(),
+            Fun::Concat => match args {
+                [Lit::StringConst(lhs), Lit::StringConst(rhs)] => {
+                    Lit::StringConst(format!("{}{}", lhs, rhs))
                 }
-            }
+                _ => panic!(),
+            },
             Fun::ConcatMap => {
                 // TODO: can't do this yet because of how eval works
                 todo!()
@@ -300,12 +301,9 @@ impl Language<Lit> for Fun {
 
                     use crate::enumerative::regex;
                     let re = regex(inner);
-                    let mut found = re.find_iter(outer)
-                        .map(|m| Lit::LocConst(m.start()));
+                    let mut found = re.find_iter(outer).map(|m| Lit::LocConst(m.start()));
 
-                    found
-                        .nth(i)
-                        .unwrap_or(Lit::LocEnd)
+                    found.nth(i).unwrap_or(Lit::LocEnd)
                 }
                 _ => panic!(),
             },
@@ -319,21 +317,18 @@ impl Language<Lit> for Fun {
 
                     use crate::enumerative::regex;
                     let re = regex(inner);
-                    let mut found = re.find_iter(outer)
-                        .map(|m| Lit::LocConst(m.end()));
+                    let mut found = re.find_iter(outer).map(|m| Lit::LocConst(m.end()));
 
-                    found
-                        .nth(i)
-                        .unwrap_or(Lit::LocEnd)
+                    found.nth(i).unwrap_or(Lit::LocEnd)
                 }
                 _ => panic!(),
             },
             Fun::Slice => match (args, input) {
                 ([Lit::LocConst(start), Lit::LocConst(end)], Lit::StringConst(s))
                     if start <= end && end <= &s.len() =>
-                    {
-                        Lit::StringConst(s[*start..*end].to_owned())
-                    }
+                {
+                    Lit::StringConst(s[*start..*end].to_owned())
+                }
                 ([Lit::LocConst(start), Lit::LocEnd], Lit::StringConst(s)) if *start <= s.len() => {
                     Lit::StringConst(s[*start..].to_owned())
                 }
@@ -484,6 +479,7 @@ impl Display for AST<Lit, Fun> {
             }
             AST::Lit(Lit::StringConst(s)) => write!(f, "'{}'", s),
             AST::Lit(Lit::LocConst(n)) => write!(f, "{}", n),
+            AST::Lit(Lit::BoolConst(b)) => write!(f, "{}", b),
             AST::Lit(Lit::LocEnd) => write!(f, "$"),
             AST::Lit(Lit::Input) => write!(f, "X"),
         }

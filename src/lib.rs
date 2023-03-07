@@ -10,8 +10,8 @@ pub mod bank;
 pub mod egg_lang;
 pub mod enumerative;
 pub mod lang;
-pub mod vsa;
 mod test;
+pub mod vsa;
 
 use enumerative::duet;
 use js_sys::JsString;
@@ -37,24 +37,31 @@ pub fn synthesize(inps: Vec<JsString>, outs: Vec<JsString>, tests: Vec<JsString>
             let synth_str = synth.to_string();
 
             let mut error = false;
-            let results: Vec<JsString> = tests_rs.iter().map(|inp| {
-                match synth.eval(&Lit::StringConst(inp.to_string())) {
+            let results: Vec<JsString> = tests_rs
+                .iter()
+                .map(|inp| match synth.eval(&Lit::StringConst(inp.to_string())) {
                     Lit::StringConst(s) => JsString::from_str(&s).unwrap(),
                     _ => {
                         error = true;
                         JsString::from_str("error").unwrap()
                     }
-                }
-            }).collect();
+                })
+                .collect();
             let res_arr: js_sys::Array = js_sys::Array::from_iter(results.iter());
 
-            obj.set(&JsString::from_str("program").unwrap(), &JsString::from_str(&synth_str).unwrap())
-                .set(&JsString::from_str("test_results").unwrap(), &res_arr)
-                .set(&JsString::from_str("error").unwrap(), &JsValue::from_bool(error))
-        },
-        None => {
-            obj.set(&JsString::from_str("error").unwrap(), &JsValue::from_bool(true))
+            obj.set(
+                &JsString::from_str("program").unwrap(),
+                &JsString::from_str(&synth_str).unwrap(),
+            )
+            .set(&JsString::from_str("test_results").unwrap(), &res_arr)
+            .set(
+                &JsString::from_str("error").unwrap(),
+                &JsValue::from_bool(error),
+            )
         }
+        None => obj.set(
+            &JsString::from_str("error").unwrap(),
+            &JsValue::from_bool(true),
+        ),
     }
-
 }

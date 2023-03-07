@@ -7,12 +7,15 @@ pub struct Bank<T> {
 
 impl<T> Bank<T> {
     pub fn new() -> Self {
-        Bank { entries: Vec::new() }
+        Bank {
+            entries: Vec::new(),
+        }
     }
 
     pub fn grow_to(&mut self, size: usize) {
         if self.entries.len() < size {
-            self.entries.extend((self.entries.len()..=size).map(|_| Vec::new()))
+            self.entries
+                .extend((self.entries.len()..=size).map(|_| Vec::new()))
         }
     }
 

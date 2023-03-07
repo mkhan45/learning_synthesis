@@ -14,6 +14,6 @@ mod combo;
 pub use combo::combo_synth;
 
 mod top_down_vsa;
-pub use top_down_vsa::top_down_vsa;
-pub use top_down_vsa::top_down as duet;
 pub use top_down_vsa::regex;
+pub use top_down_vsa::top_down as duet;
+pub use top_down_vsa::top_down_vsa;
