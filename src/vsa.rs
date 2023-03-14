@@ -225,6 +225,10 @@ where
     }
 }
 
+pub trait Cost {
+    fn cost(&self) -> usize;
+}
+
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum Fun {
     Concat,
@@ -236,10 +240,11 @@ pub enum Fun {
     Lowercase,
     Uppercase,
     ConcatMap,
+    Equal,
 }
 
-impl Fun {
-    pub fn cost(&self) -> usize {
+impl Cost for Fun {
+    fn cost(&self) -> usize {
         match self {
             Fun::Concat => 2,
             _ => 1,
@@ -263,6 +268,15 @@ pub enum Lit {
 impl InputLit for Lit {
     fn is_input(&self) -> bool {
         self == &Lit::Input
+    }
+}
+
+impl Cost for Lit {
+    fn cost(&self) -> usize {
+        match self {
+            Lit::Input | Lit::LocEnd => 0,
+            _ => 1,
+        }
     }
 }
 
@@ -346,6 +360,18 @@ impl Language<Lit> for Fun {
                 [Lit::LocEnd, _] | [_, Lit::LocEnd] => Lit::LocEnd,
                 _ => panic!(),
             },
+            Fun::Equal => match (args, input) {
+                ([Lit::LocConst(a), Lit::LocConst(b)], _) => Lit::BoolConst(a == b),
+                // ([Lit::LocEnd, Lit::LocEnd], _) => Lit::BoolConst(true),
+                ([Lit::LocConst(a), Lit::LocEnd] | [Lit::LocEnd, Lit::LocConst(a)], Lit::StringConst(s)) => {
+                    Lit::BoolConst(*a == s.len())
+                }
+                ([Lit::StringConst(a), Lit::StringConst(b)], _) => Lit::BoolConst(a == b),
+                ([Lit::Input, Lit::StringConst(b)] | [Lit::StringConst(b), Lit::Input], Lit::StringConst(s)) => {
+                    Lit::BoolConst(b == s)
+                }
+                _ => Lit::BoolConst(false),
+            },
             Fun::Lowercase => match args {
                 [Lit::StringConst(s)] => Lit::StringConst(s.to_lowercase()),
                 _ => panic!(),
@@ -380,11 +406,17 @@ where
             AST::App { args, .. } => 1 + args.iter().map(AST::size).sum::<usize>(),
         }
     }
+}
 
-    pub fn cost(&self, fn_ranker: impl Fn(&F) -> usize) -> usize {
+impl<L, F> Cost for AST<L, F>
+where
+    L: Clone + std::hash::Hash + std::fmt::Debug + InputLit + Cost,
+    F: Language<L> + Copy + std::hash::Hash + std::fmt::Debug + Cost,
+{
+    fn cost(&self) -> usize {
         match self {
-            AST::Lit(_) => 1,
-            AST::App { fun, args } => fn_ranker(fun) + args.iter().map(AST::size).sum::<usize>(),
+            AST::Lit(l) => l.cost(),
+            AST::App { fun, args } => fun.cost() + args.iter().map(AST::size).sum::<usize>(),
         }
     }
 }
@@ -476,6 +508,14 @@ impl Display for AST<Lit, Fun> {
             } => {
                 let x = args[0].clone();
                 write!(f, "{x}.upper()")
+            }
+            AST::App {
+                fun: Fun::Equal,
+                args,
+            } => {
+                let a = args[0].clone();
+                let b = args[1].clone();
+                write!(f, "({a} == {b})")
             }
             AST::Lit(Lit::StringConst(s)) => write!(f, "'{}'", s),
             AST::Lit(Lit::LocConst(n)) => write!(f, "{}", n),

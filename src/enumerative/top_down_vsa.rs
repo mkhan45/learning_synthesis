@@ -11,13 +11,17 @@ use regex::Regex;
 
 use crate::{
     bank::Bank,
-    vsa::{Fun, Lit},
+    vsa::{Fun, Lit, Cost},
 };
 
 use lazy_static::lazy_static;
 
 type VSA = crate::vsa::VSA<Lit, Fun>;
 type AST = crate::vsa::AST<Lit, Fun>;
+
+macro_rules! loc_pat {
+    () => { AST::Lit(Lit::LocConst(_) | Lit::LocEnd) | AST::App { fun: Fun::Find | Fun::LocAdd | Fun::LocSub, .. } };
+}
 
 lazy_static! {
     // TODO: figure out ideal cache size
@@ -105,6 +109,8 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
         regex_bank.size_mut(1).push(AST::Lit(prim.clone()));
     }
 
+    let enable_bools = examples.iter().any(|(_, out)| matches!(out, Lit::BoolConst(_)));
+
     let mut size = 1;
     let inps = examples.iter().map(|(inp, _)| inp);
 
@@ -115,6 +121,7 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
             &mut all_cache,
             &mut bank,
             &mut regex_bank,
+            enable_bools
         );
         // dbg!(bank.total_entries());
         let mut ex_vsas = examples.iter().enumerate().map(|(i, (inp, out))| {
@@ -127,7 +134,7 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
                 }
             }
 
-            learn(inp, out, &mut cache)
+            learn(inp, out, &mut cache, &bank)
         });
 
         let mut res = ex_vsas.next().unwrap();
@@ -136,7 +143,7 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
         // instead of pick_best, pick the best 10, and then
         // check if it works on all examples
         for vsa in ex_vsas {
-            if let Some(prog) = res.pick_one() {
+            if let Some(prog) = res.pick_best(|ast| ast.cost()) {
                 if examples.iter().all(|(inp, out)| prog.eval(inp) == *out) {
                     break;
                 };
@@ -145,7 +152,7 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
             res = Rc::new(res.intersect(vsa.as_ref()));
         }
 
-        match res.pick_best(|ast| ast.cost(Fun::cost)) {
+        match res.pick_best(|ast| ast.cost()) {
             res @ Some(_) => return res,
             None => size += 1,
         }
@@ -157,11 +164,17 @@ pub fn top_down(examples: &[(Lit, Lit)]) -> Option<AST> {
 // TODO:
 // there's still an issue with cycles here
 // maybe still needs a queue
-fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
+fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>, bank: &Bank<AST>) -> Rc<VSA> {
     let mut unifier = Vec::new();
     if let Some(res) = cache.get(out) {
         unifier.push(res.as_ref().clone());
         // return res.clone();
+    }
+
+    macro_rules! universal_witness {
+        ($p:pat) => {
+            bank.entries.iter().flat_map(|entry| entry.iter().filter(|ast| matches!(ast, $p)))
+        }
     }
 
     macro_rules! multi_match {
@@ -193,8 +206,22 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
         unifier.push(VSA::singleton(AST::Lit(Lit::BoolConst(*b))))
     },
 
+    (Lit::LocConst(n), _) => {
+        unifier.push(VSA::singleton(AST::Lit(Lit::LocConst(*n))))
+    },
+
     (Lit::LocConst(n), Lit::StringConst(inp_str)) if inp_str.len() == *n => {
         unifier.push(VSA::singleton(AST::Lit(Lit::LocEnd)));
+    },
+
+    (Lit::BoolConst(b), _) => {
+        let s = iproduct!(universal_witness!(loc_pat!()), universal_witness!(loc_pat!())).map(|(lhs, rhs)| {
+            AST::App {
+                fun: Fun::Equal,
+                args: vec![lhs.clone(), rhs.clone()],
+            }
+        }).map(Rc::new).collect();
+        unifier.push(VSA::Leaf(s));
     },
 
     (Lit::StringConst(s), Lit::StringConst(inp_str)) if s.contains(inp_str) => {
@@ -204,8 +231,8 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
             .map(|m| {
                 let start = m.start();
                 let end = m.end();
-                let start_vsa = learn(inp, &Lit::StringConst(s[0..start].to_string()), cache);
-                let end_vsa = learn(inp, &Lit::StringConst(s[end..].to_string()), cache);
+                let start_vsa = learn(inp, &Lit::StringConst(s[0..start].to_string()), cache, bank);
+                let end_vsa = learn(inp, &Lit::StringConst(s[end..].to_string()), cache, bank);
                 // dbg!(start, end, s[0..start].to_string(), s[end..].to_string(), start_vsa.clone(), end_vsa.clone());
                 // TODO: maybe add a simplify function to the AST
                 VSA::Join {
@@ -215,7 +242,7 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
                         Rc::new(VSA::Join {
                             op: Fun::Concat,
                             children: vec![
-                                learn(inp, &Lit::Input, cache),
+                                learn(inp, &Lit::Input, cache, bank),
                                 end_vsa,
                             ],
                         }),
@@ -232,8 +259,8 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
                 .map(|m| {
                     let start = m.start();
                     let end = m.end();
-                    let start_vsa = learn(inp, &Lit::LocConst(start), cache);
-                    let end_vsa = learn(inp, &Lit::LocConst(end), cache);
+                    let start_vsa = learn(inp, &Lit::LocConst(start), cache, bank);
+                    let end_vsa = learn(inp, &Lit::LocConst(end), cache, bank);
                     VSA::Join {
                         op: Fun::Slice,
                         children: vec![
@@ -266,11 +293,13 @@ fn learn(inp: &Lit, out: &Lit, cache: &mut HashMap<Lit, Rc<VSA>>) -> Rc<VSA> {
                                 inp,
                                 &Lit::StringConst(s[0..i].to_string()),
                                 cache,
+                                bank,
                             ),
                             learn(
                                 inp,
                                 &Lit::StringConst(s[i..].to_string()),
                                 cache,
+                                bank,
                             ),
                         ],
                     })
@@ -320,6 +349,7 @@ fn bottom_up<'a>(
     cache: &mut HashMap<Vec<Lit>, Rc<VSA>>,
     bank: &mut Bank<AST>,
     regex_bank: &mut Bank<AST>,
+    enable_bools: bool,
 ) {
     // dbg!(size);
     bank.grow_to(size);
@@ -354,6 +384,16 @@ fn bottom_up<'a>(
             matches!(
                 e,
                 AST::Lit(LocConst(_) | LocEnd) | AST::App { fun: Find | LocAdd | LocSub, .. }
+            )
+        })
+    };
+
+    #[rustfmt::skip]
+    let bools_of_size = |n: usize| {
+        bank.size(n).iter().filter(|e| {
+            matches!(
+                e,
+                AST::Lit(BoolConst(_)) | AST::App { fun: Equal, .. }
             )
         })
     };
@@ -446,13 +486,24 @@ fn bottom_up<'a>(
         });
         // dbg!(re_groups.clone().collect::<Vec<_>>());
 
-        loc_adds
-            .chain(loc_subs)
-            .chain(re_concats)
+        let loc_eq_size = if enable_bools { size } else { 0 };
+        let loc_eqs = (1..loc_eq_size).flat_map(|i| {
+            let lhs_size = i;
+            let rhs_size = size - i;
+            iproduct!(locs_of_size(lhs_size), locs_of_size(rhs_size)).map(|(lhs, rhs)| AST::App {
+                fun: Fun::Equal,
+                args: vec![lhs.clone(), rhs.clone()],
+            })
+        });
+
+        // loc_adds
+        //     .chain(loc_subs)
+        re_concats
             // .chain(concats)
             .chain(slices)
             .chain(finds)
             .chain(re_groups)
+            .chain(loc_eqs)
     }
     .filter(|adj| {
         let outs = inps.clone().map(|inp| adj.eval(inp)).collect::<Vec<_>>();

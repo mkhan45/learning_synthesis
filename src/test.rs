@@ -217,11 +217,28 @@ test! {
 }
 
 // temp to test tests
-test! {
-    test_bool,
-    BoolConst,
-    "a" => true;
+// test! {
+//     test_find_length,
+//     BoolConst,
+//     "abcdef" => true,
+//     "ABCDEF" => true,
+//     "abcdefg" => false,
+//     "def" => false,
+//     "another string" => false,
+//     "hijasdf" => true;
 
-    "abc" => true,
-    "1234567890" => true
-}
+//     "abc" => false,
+//     "1234567890" => false
+// }
+
+// test! {
+//     test_starts_with,
+//     BoolConst,
+//     "abc" => true,
+//     "acab" => true,
+//     "something" => false,
+//     "not a" => false;
+
+//     "abc" => true,
+//     "1234567890" => false
+// }

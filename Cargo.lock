@@ -276,7 +276,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "synth_learning"
+name = "synthesizer"
 version = "0.1.0"
 dependencies = [
  "egg",
