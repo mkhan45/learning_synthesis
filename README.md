@@ -2,6 +2,8 @@
 
 Try it out at <https://mkhan45.github.io/learning_synthesis/>
 
+check out <https://mkhan45.github.io/interactive_vsa/>
+
 ```
 // generates: (X[X.find('\d', 0)..(1 + X.find(('\d' <> '\b'), 0))]), size = 13
 test_str!(
