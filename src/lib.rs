@@ -1,6 +1,7 @@
 #![feature(io_error_other)]
 #![feature(local_key_cell_methods)]
 #![feature(is_some_and)]
+#![feature(adt_const_params)]
 
 use std::str::FromStr;
 
@@ -11,7 +12,10 @@ pub mod egg_lang;
 pub mod enumerative;
 pub mod lang;
 mod test;
+mod test_datagen;
 pub mod vsa;
+
+pub mod datagen;
 
 use enumerative::duet;
 use js_sys::JsString;
