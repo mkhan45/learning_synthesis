@@ -155,12 +155,12 @@ macro_rules! leak {
 impl ProgramGen {
     pub fn size_arity_iter<'a>(
         bank_sizes: &'a [usize], arity_lens: &'a [usize], arity: usize, size: usize
-        ) -> Box<dyn Iterator<Item = (usize, Vec<usize>)> + 'a> {
-        let child_arg_sizes = sum_permutations(arity, size);
+    ) -> Box<dyn Iterator<Item = (usize, Vec<usize>)> + 'a> {
+        let child_arg_sizes = sum_permutations(arity, size-1);
         let all_children = child_arg_sizes.into_iter().map(|v| {
             // v is the sizes needed for each child branch
             // we get a [[ChildIdx; Arity]; NumChildren]
-            v.into_iter().flat_map(|csize| (0..bank_sizes[csize]))
+            v.into_iter().flat_map(|csize| (0..bank_sizes[csize-1]))
         });
 
         // for each op of the right arity, iter through every child size combo
@@ -171,7 +171,7 @@ impl ProgramGen {
     }
 
     pub fn new(start_bank: Vec<Program>, ops: Vec<Vec<Fun>>) -> Self {
-        let bank = vec![start_bank];
+        let bank = vec![start_bank, vec![]];
         let current_arity = 1;
         let current_size = 2;
         let bank_sizes = leak!([bank[0].len()]);
@@ -197,7 +197,8 @@ impl Iterator for ProgramGen {
                 let op = self.ops[self.current_arity][op_i];
                 // should ideally use a hashcons'd AST
                 let children = children_is.into_iter().map(|child_i| {
-                    self.bank[self.current_size - 1][child_i].clone()
+                    let size_bank = &self.bank[self.current_size - 2];
+                    size_bank[child_i].clone()
                 }).collect();
                 Some( AST::App { fun: op, args: children } )
             }
@@ -205,6 +206,7 @@ impl Iterator for ProgramGen {
                 if self.current_arity == self.ops.len() {
                     self.current_arity = 1;
                     self.current_size += 1;
+                    self.bank.push(Vec::new());
                     if self.current_size > self.bank.len() {
                         return None;
                     }
@@ -234,5 +236,5 @@ fn test_prog_iterator() {
         vec![Fun::LocAdd, Fun::LocSub],
     ];
     let gen = ProgramGen::new(bank, ops);
-    dbg!(gen.collect::<Vec<_>>());
+    dbg!(gen.take(10).collect::<Vec<_>>());
 }
