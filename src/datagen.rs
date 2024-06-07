@@ -1,6 +1,10 @@
 use rand::Rng;
 use core::marker::ConstParamTy;
 
+use crate::vsa::{Lit, Fun, AST};
+
+type Program = AST<Lit, Fun>;
+
 // could be a type but then I need phantom data
 #[derive(ConstParamTy, PartialEq, Eq)]
 pub enum StringRNGToken {
@@ -60,6 +64,7 @@ pub enum Token {
 }
 
 // in the future, might want a tree structure
+// ideally, LLM generate without accidentally stealing from the test set
 pub struct TokString<const ID: StringRNGToken>(Vec<Token>);
 impl<const ID: StringRNGToken> TokString<ID> {
     pub fn to_string(&self, bank: &StringRNG<ID>) -> String {
@@ -101,10 +106,133 @@ impl<const ID: StringRNGToken> StringRNG<ID> {
     }
 }
 
-pub fn mk_programs(limit: usize) {
-    // ideally lazy iterator of infinite programs by size
-    // https://doc.rust-lang.org/nightly/std/ops/trait.Coroutine.html -- maybe too unstable
-    // maybe use from_fn
-    // maybe a struct impl iterator
-    todo!()
+pub struct ProgramGen {
+    pub bank: Vec<Vec<Program>>,
+    pub current_arity: usize,
+    pub current_size: usize,
+    pub ops: Vec<Vec<Fun>>,
+
+    size_arity_iter: Box<dyn Iterator<Item = (usize, Vec<usize>)>>,
+}
+
+// should be iterator
+pub fn sum_permutations(n: usize, target: usize) -> Vec<Vec<usize>> {
+    let mut res = Vec::new();
+    let mut current = vec![0; n];
+    let mut i = 0;
+    while i < n {
+        if current[i] < target {
+            current[i] += 1;
+            if current.iter().sum::<usize>() == target {
+                res.push(current.clone());
+            } else {
+                i = 0;
+            }
+        } else {
+            current[i] = 0;
+            i += 1;
+        }
+    }
+    res
+}
+
+#[test]
+fn test_sum_permutations() {
+    let res = sum_permutations(3, 9);
+    assert!(res.iter().all(|v| v.iter().sum::<usize>() == 9));
+    assert!(res.iter().all(|v| v.iter().count() == 3));
+    assert!(res.iter().any(|v| v == &[3, 3, 3]));
+    assert!(res.iter().any(|v| v == &[1, 5, 3]));
+    assert!(res.iter().any(|v| v == &[3, 5, 1]));
+}
+
+
+// doesnt need a macro but i want to leak!
+macro_rules! leak {
+    ($e:expr) => { Box::leak(Box::new($e)) };
+}
+
+impl ProgramGen {
+    pub fn size_arity_iter<'a>(
+        bank_sizes: &'a [usize], arity_lens: &'a [usize], arity: usize, size: usize
+        ) -> Box<dyn Iterator<Item = (usize, Vec<usize>)> + 'a> {
+        let child_arg_sizes = sum_permutations(arity, size);
+        let all_children = child_arg_sizes.into_iter().map(|v| {
+            // v is the sizes needed for each child branch
+            // we get a [[ChildIdx; Arity]; NumChildren]
+            v.into_iter().flat_map(|csize| (0..bank_sizes[csize]))
+        });
+
+        // for each op of the right arity, iter through every child size combo
+        let app_op_is = 0..arity_lens[arity];
+        Box::new(app_op_is.flat_map(move |op_i| {
+            all_children.clone().map(move |children_is| (op_i, children_is.collect()))
+        }))
+    }
+
+    pub fn new(start_bank: Vec<Program>, ops: Vec<Vec<Fun>>) -> Self {
+        let bank = vec![start_bank];
+        let current_arity = 1;
+        let current_size = 2;
+        let bank_sizes = leak!([bank[0].len()]);
+        let arity_lens = leak!(ops.iter().map(|v| v.len()).collect::<Vec<_>>());
+        let size_arity_iter = Self::size_arity_iter(bank_sizes, arity_lens, current_arity, current_size);
+
+        Self {
+            bank,
+            current_arity,
+            current_size,
+            ops,
+            size_arity_iter,
+        }
+    }
+}
+
+impl Iterator for ProgramGen {
+    type Item = Program;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.size_arity_iter.next() {
+            Some((op_i, children_is)) => {
+                let op = self.ops[self.current_arity][op_i];
+                // should ideally use a hashcons'd AST
+                let children = children_is.into_iter().map(|child_i| {
+                    self.bank[self.current_size - 1][child_i].clone()
+                }).collect();
+                Some( AST::App { fun: op, args: children } )
+            }
+            None => {
+                if self.current_arity == self.ops.len() {
+                    self.current_arity = 1;
+                    self.current_size += 1;
+                    if self.current_size > self.bank.len() {
+                        return None;
+                    }
+                }
+                self.size_arity_iter = Self::size_arity_iter(
+                    leak!(self.bank.iter().map(|v| v.len()).collect::<Vec<_>>()),
+                    leak!(self.ops.iter().map(|v| v.len()).collect::<Vec<_>>()),
+                    self.current_arity,
+                    self.current_size
+                    );
+                self.next()
+            }
+        }
+    }
+}
+
+#[test]
+fn test_prog_iterator() {
+    let bank = vec![
+        AST::Lit(Lit::LocConst(0)),
+        AST::Lit(Lit::LocConst(1)),
+        AST::Lit(Lit::LocConst(2)),
+        AST::Lit(Lit::LocConst(3)),
+    ];
+    let ops = vec![
+        vec![],
+        vec![Fun::LocAdd, Fun::LocSub],
+    ];
+    let gen = ProgramGen::new(bank, ops);
+    dbg!(gen.collect::<Vec<_>>());
 }
