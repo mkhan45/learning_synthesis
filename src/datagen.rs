@@ -223,18 +223,49 @@ impl Iterator for ProgramGen {
     }
 }
 
-#[test]
-fn test_prog_iterator() {
-    let bank = vec![
-        AST::Lit(Lit::LocConst(0)),
-        AST::Lit(Lit::LocConst(1)),
-        AST::Lit(Lit::LocConst(2)),
-        AST::Lit(Lit::LocConst(3)),
-    ];
-    let ops = vec![
-        vec![],
-        vec![Fun::LocAdd, Fun::LocSub],
-    ];
-    let gen = ProgramGen::new(bank, ops);
-    dbg!(gen.take(10).collect::<Vec<_>>());
+pub struct Examples<'a, const T: StringRNGToken> {
+    pub prog: &'a Program,
+    pub inp_gen: &'a mut StringRNG<T>,
+}
+
+// pub struct TraceApp {
+//     fun: Fun,
+//     args: Vec<Lit>,
+// }
+
+// pub struct Trace {
+//     pub out: Lit,
+//     pub from: Option<TraceApp>,
+// }
+
+// just a cached AST but feels better bc it's upside down
+// and the funs are conceptually inverse
+pub enum Trace {
+    Final(Lit),
+    App { out: Lit, fun: Fun, args: Vec<Trace> }
+}
+
+impl Trace {
+    pub fn value<'a>(&'a self) -> &'a Lit {
+        match self {
+            Trace::Final(l) => l,
+            Trace::App { out, .. } => out,
+        }
+    }
+
+    pub fn value_clone(&self) -> Lit {
+        self.value().clone()
+    }
+}
+
+impl<'a, const T: StringRNGToken> Examples<'a, T> {
+    pub fn new(prog: &'a Program, inp_gen: &'a mut StringRNG<T>) -> Self {
+        Examples { prog, inp_gen }
+    }
+
+    pub fn new_trace(&self) -> Trace {
+        todo!()
+    }
+
+    // pub fn paths(&self) -> 
 }

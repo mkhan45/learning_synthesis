@@ -7,6 +7,7 @@ use std::io::{self, BufRead};
 
 const TEST: StringRNGToken = StringRNGToken::Test;
 
+// generates input strings
 #[test]
 fn test_datagen() {
     let file = File::open("data/words.txt").unwrap();
@@ -22,4 +23,21 @@ fn test_datagen() {
     dbg!(string_rng.gen_string_fr(5));
     dbg!(string_rng.gen_string_fr(6));
     dbg!(string_rng.gen_string_fr(7));
+}
+
+// infinite program iterator
+#[test]
+fn test_prog_iterator() {
+    let bank = vec![
+        AST::Lit(Lit::LocConst(0)),
+        AST::Lit(Lit::LocConst(1)),
+        AST::Lit(Lit::LocConst(2)),
+        AST::Lit(Lit::LocConst(3)),
+    ];
+    let ops = vec![
+        vec![],
+        vec![Fun::LocAdd, Fun::LocSub],
+    ];
+    let mut gen = ProgramGen::new(bank, ops);
+    dbg!(gen.nth(10_000_000));
 }
