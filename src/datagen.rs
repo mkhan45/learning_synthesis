@@ -240,6 +240,7 @@ pub struct Examples<'a, const T: StringRNGToken> {
 
 // just a cached AST but feels better bc it's upside down
 // and the funs are conceptually inverse
+// lowkey a singleton vsa
 pub enum Trace {
     Final(Lit),
     App { out: Lit, fun: Fun, args: Vec<Trace> }
@@ -263,9 +264,10 @@ impl<'a, const T: StringRNGToken> Examples<'a, T> {
         Examples { prog, inp_gen }
     }
 
-    pub fn new_trace(&self) -> Trace {
+    // might be good to hashcons
+    // i feel like this is stupid and I should just
+    // do it in one pass
+    pub fn traces(&self) -> Vec<Trace> {
         todo!()
     }
-
-    // pub fn paths(&self) -> 
 }
