@@ -1,6 +1,10 @@
 use rand::Rng;
 use core::marker::ConstParamTy;
 
+use std::fs::File;
+use std::path::Path;
+use std::io::BufWriter;
+
 use crate::vsa::{Lit, Fun, AST};
 
 type Program = AST<Lit, Fun>;
@@ -267,7 +271,16 @@ impl<'a, const T: StringRNGToken> Examples<'a, T> {
     // might be good to hashcons
     // i feel like this is stupid and I should just
     // do it in one pass
-    pub fn traces(&self) -> Vec<Trace> {
-        todo!()
+    // pub fn traces(&self) -> Vec<Trace> {
+    //     todo!()
+    // }
+    pub fn write_traces<P: AsRef<Path>>(&self, path: P) -> std::io::Result<()> {
+        let f = File::open(path)?;
+        let writer = BufWriter::new(f);
+        Self::trace(self.prog, writer) // should pass input too somehow
+    }
+
+    fn trace(prog: &'a Program, writer: BufWriter<File>) -> std::io::Result<()> {
+        Ok(todo!())
     }
 }

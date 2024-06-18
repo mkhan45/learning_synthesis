@@ -3,6 +3,7 @@
 use crate::datagen::*;
 
 use std::fs::File;
+use std::path::Path;
 use std::io::{self, BufRead};
 
 const TEST: StringRNGToken = StringRNGToken::Test;
