@@ -229,7 +229,7 @@ impl Iterator for ProgramGen {
 
 pub struct Examples<'a, const T: StringRNGToken> {
     pub prog: &'a Program,
-    pub inp_gen: &'a mut StringRNG<T>,
+    pub inps: &'a [String],
 }
 
 // pub struct TraceApp {
@@ -264,8 +264,8 @@ impl Trace {
 }
 
 impl<'a, const T: StringRNGToken> Examples<'a, T> {
-    pub fn new(prog: &'a Program, inp_gen: &'a mut StringRNG<T>) -> Self {
-        Examples { prog, inp_gen }
+    pub fn new(prog: &'a Program, inps: &'a [String]) -> Self {
+        Examples { prog, inps }
     }
 
     // might be good to hashcons
@@ -274,13 +274,20 @@ impl<'a, const T: StringRNGToken> Examples<'a, T> {
     // pub fn traces(&self) -> Vec<Trace> {
     //     todo!()
     // }
-    pub fn write_traces<P: AsRef<Path>>(&self, path: P) -> std::io::Result<()> {
+    pub fn write_traces<P: AsRef<Path>>(&mut self, path: P) -> std::io::Result<()> {
         let f = File::open(path)?;
-        let writer = BufWriter::new(f);
-        Self::trace(self.prog, writer) // should pass input too somehow
+        let mut writer = BufWriter::new(f);
+        
+        for inp in self.inps {
+            Self::trace(self.prog, Lit::StringConst(inp.clone()), &mut writer)?;
+        }
+
+        Ok(())
     }
 
-    fn trace(prog: &'a Program, writer: BufWriter<File>) -> std::io::Result<()> {
+    fn trace(prog: &'a Program, inp: Lit, writer: &mut BufWriter<File>) -> std::io::Result<()> {
+        // 1. dfs program trace
+        // 2. at the end of each path, boilerplate to separate traces
         Ok(todo!())
     }
 }
