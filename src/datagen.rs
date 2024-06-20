@@ -3,11 +3,15 @@ use core::marker::ConstParamTy;
 
 use std::fs::File;
 use std::path::Path;
-use std::io::BufWriter;
+use std::io::{BufWriter, Write};
+
+use itertools::Itertools;
 
 use crate::vsa::{Lit, Fun, AST};
 
 type Program = AST<Lit, Fun>;
+
+use im::Vector as iVec;
 
 // could be a type but then I need phantom data
 #[derive(ConstParamTy, PartialEq, Eq)]
@@ -275,19 +279,64 @@ impl<'a, const T: StringRNGToken> Examples<'a, T> {
     //     todo!()
     // }
     pub fn write_traces<P: AsRef<Path>>(&mut self, path: P) -> std::io::Result<()> {
-        let f = File::open(path)?;
+        let f = File::create(path)?;
         let mut writer = BufWriter::new(f);
         
         for inp in self.inps {
-            Self::trace(self.prog, Lit::StringConst(inp.clone()), &mut writer)?;
+            let inp_lit = Lit::StringConst(inp.clone());
+            let out = self.prog.eval(&inp_lit);
+            let first_trace = im::vector![format!("{} → {};", inp_lit, out)];
+            Self::trace(first_trace, self.prog, &inp_lit, &mut writer)?;
+        }
+
+        writer.flush()?;
+        Ok(())
+    }
+
+    fn trace(parent_trace: iVec<String>, prog: &'a Program, inp: &Lit, writer: &mut BufWriter<File>) -> std::io::Result<()> {
+        // 1. dfs program trace, add stuff to imlist
+        // 2. at the end of each path, write stuff from imlist, it was reversed
+
+        let out = prog.eval(&inp);
+        match prog {
+            AST::Lit(l) => {
+                // weird lib
+                let mut final_trace = parent_trace.clone();
+                final_trace.push_back(format!("{} ← Lit({})", out, l));
+
+                for trace_line in final_trace.iter() {
+                    write!(writer, "{}\n", trace_line)?;
+                }
+                write!(writer, "\n")?;
+            }
+            AST::App { fun, args } => {
+                let mut arg_vals = args.iter().map(|c| c.eval(inp));
+                let arg_str = arg_vals.join(", ");
+                let mut next_trace = parent_trace.clone();
+                next_trace.push_back(format!("{} ← {:?}({})", out, fun, arg_str));
+                for arg in args {
+                    Self::trace(next_trace.clone(), arg, inp, writer)?;
+                }
+            }
         }
 
         Ok(())
     }
+}
 
-    fn trace(prog: &'a Program, inp: Lit, writer: &mut BufWriter<File>) -> std::io::Result<()> {
-        // 1. dfs program trace
-        // 2. at the end of each path, boilerplate to separate traces
-        Ok(todo!())
+impl std::fmt::Display for Lit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Lit::StringConst(s) => {
+                f.write_str("\"")?; 
+                f.write_str(s)?;
+                f.write_str("\"")?; 
+                Ok(())
+            }
+            Lit::LocConst(l) => f.write_str(&l.to_string()),
+            Lit::BoolConst(b) => f.write_str(&b.to_string()),
+            Lit::LocEnd => f.write_str("$"),
+            Lit::Input => f.write_str("X"),
+        }
     }
 }

@@ -6,6 +6,8 @@ use std::fs::File;
 use std::path::Path;
 use std::io::{self, BufRead};
 
+use crate::vsa::{Lit, Fun, AST};
+
 const TEST: StringRNGToken = StringRNGToken::Test;
 
 // generates input strings
@@ -41,4 +43,19 @@ fn test_prog_iterator() {
     ];
     let mut gen = ProgramGen::new(bank, ops);
     dbg!(gen.nth(10_000_000));
+}
+
+#[test]
+fn test_tracer() {
+    let prog = AST::App {
+        fun: Fun::Concat,
+        args: vec![
+            AST::Lit(Lit::StringConst("Hello ".to_string())),
+            AST::Lit(Lit::StringConst("World".to_string())),
+        ],
+    };
+
+    let inps = &["".to_string()];
+    let mut e = Examples::<TEST>::new(&prog, inps);
+    e.write_traces("./test.txt").unwrap();
 }
