@@ -12,10 +12,10 @@ pub mod egg_lang;
 pub mod enumerative;
 pub mod lang;
 mod test;
-mod test_datagen;
+// mod test_datagen;
 pub mod vsa;
 
-pub mod datagen;
+// pub mod datagen;
 
 use enumerative::duet;
 use js_sys::JsString;

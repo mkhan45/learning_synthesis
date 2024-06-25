@@ -1,13 +1,19 @@
+#![feature(io_error_other)]
+#![feature(local_key_cell_methods)]
+#![feature(is_some_and)]
+#![feature(adt_const_params)]
+
 use rand::Rng;
 use core::marker::ConstParamTy;
 
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::path::Path;
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, BufReader, Write, BufRead};
 
 use itertools::Itertools;
 
-use crate::vsa::{Lit, Fun, AST};
+use synthesizer::vsa::{Lit, Fun, AST};
 
 type Program = AST<Lit, Fun>;
 
@@ -17,6 +23,7 @@ use im::Vector as iVec;
 #[derive(ConstParamTy, PartialEq, Eq)]
 pub enum StringRNGToken {
     Test,
+    Gen,
 }
 
 pub struct StringRNG<const ID: StringRNGToken> {
@@ -164,7 +171,9 @@ impl ProgramGen {
     pub fn size_arity_iter<'a>(
         bank_sizes: &'a [usize], arity_lens: &'a [usize], arity: usize, size: usize
     ) -> Box<dyn Iterator<Item = (usize, Vec<usize>)> + 'a> {
+        dbg!((arity, size));
         let child_arg_sizes = sum_permutations(arity, size-1);
+        dbg!(&child_arg_sizes);
         let all_children = child_arg_sizes.into_iter().map(|v| {
             // v is the sizes needed for each child branch
             // we get a [[ChildIdx; Arity]; NumChildren]
@@ -200,7 +209,7 @@ impl Iterator for ProgramGen {
     type Item = Program;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.size_arity_iter.next() {
+        match dbg!(self.size_arity_iter.next()) {
             Some((op_i, children_is)) => {
                 let op = self.ops[self.current_arity][op_i];
                 // should ideally use a hashcons'd AST
@@ -231,7 +240,27 @@ impl Iterator for ProgramGen {
     }
 }
 
-pub struct Examples<'a, const T: StringRNGToken> {
+// TODO:
+// 1. iterate over every program
+// 2. robustly handle types; have a different bank for each type
+// 3. regexes are their own type
+pub fn prog_gen(
+    bank: Vec<(usize, Program)>, funs: Vec<(Fun, Vec<usize>)>, num_types: usize
+) -> Box<impl Iterator<Item=Program>> {
+    let mut current_arith = 1;
+    let mut current_size = 2;
+    let mut current_fun = 0;
+    let mut type_size_banks: Vec<_> = (0..num_types).map(|_| vec![]).collect();
+    for (t, p) in bank {
+        type_size_banks[t].push(p);
+    }
+
+    Box::new(std::iter::from_fn(|| {
+        todo!()
+    }))
+}
+
+pub struct Examples<'a> {
     pub prog: &'a Program,
     pub inps: &'a [String],
 }
@@ -267,7 +296,7 @@ impl Trace {
     }
 }
 
-impl<'a, const T: StringRNGToken> Examples<'a, T> {
+impl<'a> Examples<'a> {
     pub fn new(prog: &'a Program, inps: &'a [String]) -> Self {
         Examples { prog, inps }
     }
@@ -279,9 +308,9 @@ impl<'a, const T: StringRNGToken> Examples<'a, T> {
     //     todo!()
     // }
     pub fn write_traces<P: AsRef<Path>>(&mut self, path: P) -> std::io::Result<()> {
-        let f = File::create(path)?;
+        let f = OpenOptions::new().create(true).append(true).open(path)?;
         let mut writer = BufWriter::new(f);
-        
+
         for inp in self.inps {
             let inp_lit = Lit::StringConst(inp.clone());
             let out = self.prog.eval(&inp_lit);
@@ -324,19 +353,70 @@ impl<'a, const T: StringRNGToken> Examples<'a, T> {
     }
 }
 
-impl std::fmt::Display for Lit {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Lit::StringConst(s) => {
-                f.write_str("\"")?; 
-                f.write_str(s)?;
-                f.write_str("\"")?; 
-                Ok(())
-            }
-            Lit::LocConst(l) => f.write_str(&l.to_string()),
-            Lit::BoolConst(b) => f.write_str(&b.to_string()),
-            Lit::LocEnd => f.write_str("$"),
-            Lit::Input => f.write_str("X"),
+const Gen: StringRNGToken = StringRNGToken::Gen;
+
+pub fn gen_inputs() -> Vec<String> {
+    let file = File::open("data/words.txt").unwrap();
+    let dict: Vec<String> = BufReader::new(file)
+        .lines()
+        .map(|line| line.unwrap())
+        .collect();
+
+    let mut string_rng: StringRNG<Gen> = 
+        StringRNG::new(dict, vec![".".to_string(), ",".to_string(), ":".to_string()]);
+
+    let mut res = vec![];
+    (0..300).for_each(|_| res.push(string_rng.gen_string_fr(1)));
+    (0..750).for_each(|_| res.push(string_rng.gen_string_fr(2)));
+    (0..500).for_each(|_| res.push(string_rng.gen_string_fr(3)));
+    (0..300).for_each(|_| res.push(string_rng.gen_string_fr(4)));
+    (0..100).for_each(|_| res.push(string_rng.gen_string_fr(5)));
+    res
+}
+
+// TODO: generate some inputs, generate a bunch of programs, trace all the programs
+fn main() {
+    if false {
+        let inps = gen_inputs();
+        let txt = File::create("data/generated_inputs.txt").unwrap();
+        let mut writer = BufWriter::new(txt);
+        for inp in inps {
+            write!(writer, "{}\n", inp).unwrap();
         }
+        writer.flush().unwrap();
+    }
+
+    let inp_file = File::open("data/generated_inputs.txt").unwrap();
+    let reader = BufReader::new(inp_file);
+    let inps: Vec<_> = reader.lines().map(Result::unwrap).collect();
+    let programs = {
+        let bank = vec![
+            // TODO: better to separate regexes :/
+            AST::Lit(Lit::StringConst("\\.".to_string())),
+            AST::Lit(Lit::StringConst("\\d".to_string())),
+            AST::Lit(Lit::StringConst("\\b".to_string())),
+            AST::Lit(Lit::StringConst("[a-z]".to_string())),
+            AST::Lit(Lit::StringConst("[A-Z]".to_string())),
+            AST::Lit(Lit::Input),
+            AST::Lit(Lit::StringConst("".to_string())),
+            AST::Lit(Lit::StringConst(" ".to_string())),
+            AST::Lit(Lit::StringConst(".".to_string())),
+            AST::Lit(Lit::LocConst(0)),
+            AST::Lit(Lit::LocConst(1)),
+            AST::Lit(Lit::LocEnd),
+        ];
+        let ops = vec![
+            vec![],
+            vec![Fun::Concat, Fun::Slice, Fun::LocAdd],
+            vec![Fun::Find, Fun::FindEnd],
+        ];
+
+            ProgramGen::new(bank, ops)
+    };
+
+    for prog in programs {
+        dbg!(&prog);
+        let mut e = Examples::new(&prog, &inps);
+        e.write_traces("./test.txt").unwrap()
     }
 }

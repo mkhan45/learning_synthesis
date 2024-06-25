@@ -545,3 +545,20 @@ where
         }
     }
 }
+
+impl std::fmt::Display for Lit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Lit::StringConst(s) => {
+                f.write_str("\"")?; 
+                f.write_str(s)?;
+                f.write_str("\"")?; 
+                Ok(())
+            }
+            Lit::LocConst(l) => f.write_str(&l.to_string()),
+            Lit::BoolConst(b) => f.write_str(&b.to_string()),
+            Lit::LocEnd => f.write_str("$"),
+            Lit::Input => f.write_str("X"),
+        }
+    }
+}

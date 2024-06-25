@@ -4,8 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
+name = "synthesizer"
 crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
+
+[[bin]]
+name = "datagen"
+path = "src/datagen.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
