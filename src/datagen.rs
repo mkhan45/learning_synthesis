@@ -240,24 +240,87 @@ impl Iterator for ProgramGen {
     }
 }
 
+type TyIndex = usize;
+
 // TODO:
 // 1. iterate over every program
 // 2. robustly handle types; have a different bank for each type
 // 3. regexes are their own type
 pub fn prog_gen(
-    bank: Vec<(usize, Program)>, funs: Vec<(Fun, Vec<usize>)>, num_types: usize
+    bank: Vec<(TyIndex, Program)>,
+    funs: &'static Vec<(Fun, Vec<TyIndex>, TyIndex)>,
+    num_types: usize
 ) -> Box<impl Iterator<Item=Program>> {
-    let mut current_arith = 1;
-    let mut current_size = 2;
-    let mut current_fun = 0;
-    let mut type_size_banks: Vec<_> = (0..num_types).map(|_| vec![]).collect();
+    // size >>= fun
+    // at the end of the fun loop we'll have the programs of
+    // size n of each type
+    // tsb[TyIndex][size] : Vec<Programs of size>
+    let mut type_size_banks: Vec<_> = vec![vec![vec![]]; num_types];
     for (t, p) in bank {
-        type_size_banks[t].push(p);
+        type_size_banks[t][0].push(p);
     }
 
-    Box::new(std::iter::from_fn(|| {
-        todo!()
+    let tsb_ptr: *mut _ = &mut type_size_banks; // segv bc tsb resizes? TODO: just Rc tsb
+
+    Box::new((2..).flat_map(move |current_size| {
+        dbg!();
+        funs.iter().flat_map(move |(current_fun, arg_types, ret_type)| {
+            let arity = arg_types.len();
+            let mut arg_size_lsts = sum_permutations(arity, current_size);
+            arg_size_lsts.retain(|ls| !ls.iter().any(|&s| s == 0));
+            arg_size_lsts.into_iter().map(move |arg_sizes| unsafe {
+                let args = arg_types.iter().zip(arg_sizes.iter()).flat_map(|(&ty, &sz)| {
+                    dbg!();
+                    let tsb = tsb_ptr.as_ref().unwrap();
+                    dbg!();
+                    (tsb)[ty][sz-1].iter().cloned()
+                }).collect();
+                dbg!();
+                let prog = AST::App { fun: *current_fun, args };
+                dbg!();
+                (*tsb_ptr)[*ret_type][current_size-1].push(prog.clone());
+                prog
+            })
+        })
     }))
+    // Box::new(std::iter::from_fn(|| {
+    //     todo!()
+    // }))
+}
+
+#[test]
+fn test_prog_gen() {
+    let string = 0;
+    let regex = 1;
+    let loc = 2;
+    let ntys = 3;
+
+    let bank = vec![
+        (regex, AST::Lit(Lit::StringConst("\\.".to_string()))),
+        (regex, AST::Lit(Lit::StringConst("\\d".to_string()))),
+        (regex, AST::Lit(Lit::StringConst("\\b".to_string()))),
+        (regex, AST::Lit(Lit::StringConst("[a-z]".to_string()))),
+        (regex, AST::Lit(Lit::StringConst("[A-Z]".to_string()))),
+        (string, AST::Lit(Lit::Input)),
+        (string, AST::Lit(Lit::StringConst("".to_string()))),
+        (string, AST::Lit(Lit::StringConst(" ".to_string()))),
+        (string, AST::Lit(Lit::StringConst(".".to_string()))),
+        (loc, AST::Lit(Lit::LocConst(0))),
+        (loc, AST::Lit(Lit::LocConst(1))),
+        (loc, AST::Lit(Lit::LocEnd)),
+    ];
+    let ops = vec![
+        (Fun::Concat, vec![string, string], string),
+        (Fun::Slice, vec![string, loc, loc], string),
+        (Fun::LocAdd, vec![loc, loc], loc),
+        (Fun::Find, vec![string, string, loc], loc),
+        (Fun::FindEnd, vec![string, string, loc], loc),
+    ];
+    let ops = leak!(ops);
+
+    let progs = prog_gen(bank, ops, ntys);
+    let coll: Vec<_> = progs.take(100).collect();
+    dbg!(coll);
 }
 
 pub struct Examples<'a> {
