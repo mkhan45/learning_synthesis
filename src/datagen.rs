@@ -260,25 +260,29 @@ pub fn prog_gen(
         type_size_banks[t][0].push(p);
     }
 
-    let tsb_ptr: *mut _ = &mut type_size_banks; // segv bc tsb resizes? TODO: just Rc tsb
+    use std::rc::Rc;
+    use std::cell::RefCell;
+    let tsb = Rc::new(RefCell::new(type_size_banks));
 
     Box::new((2..).flat_map(move |current_size| {
-        dbg!();
+        for t in 0..num_types {
+            tsb.borrow_mut()[t].push(vec![]);
+        }
+        // fucked
+        let tsb = tsb.clone();
         funs.iter().flat_map(move |(current_fun, arg_types, ret_type)| {
             let arity = arg_types.len();
             let mut arg_size_lsts = sum_permutations(arity, current_size);
             arg_size_lsts.retain(|ls| !ls.iter().any(|&s| s == 0));
-            arg_size_lsts.into_iter().map(move |arg_sizes| unsafe {
+            let tsb = tsb.clone();
+            arg_size_lsts.into_iter().map(move |arg_sizes| {
+                let tsb_borrow = tsb.borrow();
                 let args = arg_types.iter().zip(arg_sizes.iter()).flat_map(|(&ty, &sz)| {
-                    dbg!();
-                    let tsb = tsb_ptr.as_ref().unwrap();
-                    dbg!();
-                    (tsb)[ty][sz-1].iter().cloned()
+                    tsb_borrow[ty][sz-1].iter().cloned()
                 }).collect();
-                dbg!();
+                std::mem::drop(tsb_borrow);
                 let prog = AST::App { fun: *current_fun, args };
-                dbg!();
-                (*tsb_ptr)[*ret_type][current_size-1].push(prog.clone());
+                tsb.borrow_mut()[*ret_type][current_size-1].push(prog.clone());
                 prog
             })
         })
