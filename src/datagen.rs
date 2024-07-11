@@ -269,6 +269,14 @@ pub fn prog_gen(
             tsb.borrow_mut()[t].push(vec![]);
         }
         let tsb = tsb.clone();
+        // for {
+        //  fun <- funs
+        //  arg_sizes <- arg_size_lsts
+        //  (ty, sz) <- arg_types zip arg_sizes
+        //  [args_i] = progs of type ty with size sz
+        //  args <- combinations of all args_i
+        //  prog <- cons from args
+        // }
         funs.iter().flat_map(move |(current_fun, arg_types, ret_type)| {
             let arity = arg_types.len();
             let mut arg_size_lsts = sum_permutations(arity, current_size);
@@ -280,9 +288,12 @@ pub fn prog_gen(
                 let tsb_borrow = tsb.borrow();
                 arg_types.iter().zip(arg_sizes.iter()) // [(ty, size); arity]
                 .map(move |(&ty, &sz)| {
+                    // TODO: collecting here chunks a bit much, could maybe
+                    // do with indices
                     // [progs of type ty of size sz]
                     tsb_borrow[ty][sz-1].iter().cloned().collect::<Vec<_>>()
-                }).multi_cartesian_product()
+                })
+                .multi_cartesian_product() // all combinations of different args : [[arg; arity]]
                 .map(|args| AST::App { fun: *current_fun, args })
                 .inspect(move |prog| {
                     tsb.borrow_mut()[*ret_type][current_size-1].push(prog.clone());
@@ -290,9 +301,6 @@ pub fn prog_gen(
             })
         })
     }))
-    // Box::new(std::iter::from_fn(|| {
-    //     todo!()
-    // }))
 }
 
 #[test]
