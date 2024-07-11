@@ -268,22 +268,25 @@ pub fn prog_gen(
         for t in 0..num_types {
             tsb.borrow_mut()[t].push(vec![]);
         }
-        // fucked
         let tsb = tsb.clone();
         funs.iter().flat_map(move |(current_fun, arg_types, ret_type)| {
             let arity = arg_types.len();
             let mut arg_size_lsts = sum_permutations(arity, current_size);
             arg_size_lsts.retain(|ls| !ls.iter().any(|&s| s == 0));
+            // dbg!((current_fun, current_size, &arg_size_lsts));
             let tsb = tsb.clone();
-            arg_size_lsts.into_iter().map(move |arg_sizes| {
+            arg_size_lsts.into_iter().flat_map(move |arg_sizes| {
+                let tsb = tsb.clone();
                 let tsb_borrow = tsb.borrow();
-                let args = arg_types.iter().zip(arg_sizes.iter()).flat_map(|(&ty, &sz)| {
-                    tsb_borrow[ty][sz-1].iter().cloned()
-                }).collect();
-                std::mem::drop(tsb_borrow);
-                let prog = AST::App { fun: *current_fun, args };
-                tsb.borrow_mut()[*ret_type][current_size-1].push(prog.clone());
-                prog
+                arg_types.iter().zip(arg_sizes.iter()) // [(ty, size); arity]
+                .map(move |(&ty, &sz)| {
+                    // [progs of type ty of size sz]
+                    tsb_borrow[ty][sz-1].iter().cloned().collect::<Vec<_>>()
+                }).multi_cartesian_product()
+                .map(|args| AST::App { fun: *current_fun, args })
+                .inspect(move |prog| {
+                    tsb.borrow_mut()[*ret_type][current_size-1].push(prog.clone());
+                })
             })
         })
     }))
@@ -315,8 +318,8 @@ fn test_prog_gen() {
     ];
     let ops = vec![
         (Fun::Concat, vec![string, string], string),
-        (Fun::Slice, vec![string, loc, loc], string),
-        (Fun::LocAdd, vec![loc, loc], loc),
+        (Fun::Slice, vec![loc, loc], string),
+        // (Fun::LocAdd, vec![loc, loc], loc),
         (Fun::Find, vec![string, string, loc], loc),
         (Fun::FindEnd, vec![string, string, loc], loc),
     ];
@@ -324,7 +327,9 @@ fn test_prog_gen() {
 
     let progs = prog_gen(bank, ops, ntys);
     let coll: Vec<_> = progs.take(100).collect();
-    dbg!(coll);
+    for p in coll {
+        println!("{}", p);
+    }
 }
 
 pub struct Examples<'a> {
